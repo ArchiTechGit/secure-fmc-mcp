@@ -34,11 +34,11 @@ CREATE INDEX IF NOT EXISTS idx_users_tool_profile_id ON users(tool_profile_id);
 
 -- Seed default profiles
 -- max_tools=0 on 'Full Access' profile means no filtering
-INSERT INTO tool_profiles (name, description, max_tools) VALUES
-    ('Fabric Operations', 'Common fabric management operations for VLAN, VRF, BD, and EPG', 30),
-    ('Monitoring & Health', 'Read-only monitoring and health check operations', 25),
-    ('Troubleshooting', 'Network analysis and troubleshooting tools', 25),
-    ('Full Access', 'All available operations (no filtering)', 0)
+INSERT INTO tool_profiles (name, description, max_tools, created_at, updated_at) VALUES
+    ('Fabric Operations', 'Common fabric management operations for VLAN, VRF, BD, and EPG', 30, NOW(), NOW()),
+    ('Monitoring & Health', 'Read-only monitoring and health check operations', 25, NOW(), NOW()),
+    ('Troubleshooting', 'Network analysis and troubleshooting tools', 25, NOW(), NOW()),
+    ('Full Access', 'All available operations (no filtering)', 0, NOW(), NOW())
 ON CONFLICT (name) DO NOTHING;
 
 COMMENT ON TABLE tool_profiles IS 'Profiles that control which tools/operations are exposed to MCP clients per user';
