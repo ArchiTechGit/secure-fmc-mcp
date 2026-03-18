@@ -71,11 +71,11 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_toke
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at);
 
 -- Default system roles
-INSERT INTO roles (name, description, edit_mode_enabled, is_system_role)
+INSERT INTO roles (name, description, edit_mode_enabled, is_system_role, created_at, updated_at)
 VALUES
-    ('Administrator', 'Full access to all operations with edit mode enabled', TRUE, TRUE),
-    ('Network Operator', 'Read-write access to network operational tasks', TRUE, TRUE),
-    ('Read-Only User', 'View-only access to all data without edit capabilities', FALSE, TRUE)
+    ('Administrator', 'Full access to all operations with edit mode enabled', TRUE, TRUE, NOW(), NOW()),
+    ('Network Operator', 'Read-write access to network operational tasks', TRUE, TRUE, NOW(), NOW()),
+    ('Read-Only User', 'View-only access to all data without edit capabilities', FALSE, TRUE, NOW(), NOW())
 ON CONFLICT (name) DO NOTHING;
 
 -- Update audit_log to link to users table (optional foreign key)

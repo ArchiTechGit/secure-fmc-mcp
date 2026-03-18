@@ -7,7 +7,7 @@
 -- WORKFLOWS
 -- ============================================================================
 
-INSERT INTO workflows (name, display_name, description, problem_statement, use_case_tags, is_active, priority)
+INSERT INTO workflows (name, display_name, description, problem_statement, use_case_tags, is_active, priority, created_at, updated_at)
 VALUES
     (
         'endpoint_unreachable',
@@ -15,7 +15,7 @@ VALUES
         'Diagnose why a VM or host cannot be reached from the network. Walks through endpoint lookup, history, anomaly detection, interface checks, and path tracing.',
         'A VM or endpoint is not reachable from the network.',
         '["troubleshooting", "connectivity", "endpoint"]',
-        TRUE, 100
+        TRUE, 100, NOW(), NOW()
     ),
     (
         'duplicate_ip_detection',
@@ -23,7 +23,7 @@ VALUES
         'Identify and resolve duplicate IP address conflicts causing connectivity issues. Locates conflicting endpoints and provides resolution guidance.',
         'Two or more hosts share the same IP address causing connectivity issues.',
         '["troubleshooting", "ip", "duplicate", "endpoint"]',
-        TRUE, 95
+        TRUE, 95, NOW(), NOW()
     ),
     (
         'fabric_health_assessment',
@@ -31,7 +31,7 @@ VALUES
         'Proactive health check across the entire fabric. Reviews health scores, anomalies, advisories, and switch status for early issue detection.',
         'General fabric health check, proactive monitoring.',
         '["monitoring", "health", "proactive"]',
-        TRUE, 90
+        TRUE, 90, NOW(), NOW()
     ),
     (
         'interface_troubleshooting',
@@ -39,7 +39,7 @@ VALUES
         'Diagnose interface issues including link down, flapping, errors, and congestion. Checks counters, statistics, and related anomalies.',
         'Interface is down, flapping, or showing errors.',
         '["troubleshooting", "interface", "errors"]',
-        TRUE, 85
+        TRUE, 85, NOW(), NOW()
     ),
     (
         'bgp_routing_investigation',
@@ -47,7 +47,7 @@ VALUES
         'Investigate routing problems including missing routes, BGP neighbor failures, and unexpected routing behavior. Checks neighbors, tables, and route churn.',
         'Routes missing, BGP neighbor down, unexpected routing behavior.',
         '["troubleshooting", "routing", "bgp", "l3"]',
-        TRUE, 80
+        TRUE, 80, NOW(), NOW()
     ),
     (
         'flow_path_analysis',
@@ -55,7 +55,7 @@ VALUES
         'Trace and analyze the traffic path between two endpoints. Creates troubleshoot jobs, visualizes topology, and checks flow statistics.',
         'Traffic between two endpoints is broken or taking wrong path.',
         '["troubleshooting", "flow", "path", "connectivity"]',
-        TRUE, 75
+        TRUE, 75, NOW(), NOW()
     ),
     (
         'configuration_compliance_check',
@@ -63,7 +63,7 @@ VALUES
         'Verify fabric configuration matches intended state. Reviews compliance summaries, violations, pending changes, and config drift.',
         'Verify fabric configuration matches intended state.',
         '["compliance", "configuration", "drift"]',
-        TRUE, 70
+        TRUE, 70, NOW(), NOW()
     ),
     (
         'advisory_alert_triage',
@@ -71,7 +71,7 @@ VALUES
         'Prioritize and resolve multiple advisories and alerts. Reviews severity, trends, recommendations, and software upgrade options.',
         'Multiple advisories/alerts to prioritize and resolve.',
         '["operations", "advisories", "alerts"]',
-        TRUE, 65
+        TRUE, 65, NOW(), NOW()
     ),
     (
         'node_switch_health',
@@ -79,7 +79,7 @@ VALUES
         'Investigate an unhealthy or unresponsive switch. Checks health overview, configuration, anomalies, infrastructure status, and cluster health.',
         'A switch or node appears unhealthy or unresponsive.',
         '["troubleshooting", "switch", "node", "health"]',
-        TRUE, 60
+        TRUE, 60, NOW(), NOW()
     ),
     (
         'multicast_troubleshooting',
@@ -87,7 +87,7 @@ VALUES
         'Diagnose multicast delivery issues including IGMP and PIM problems. Checks routes, sources, receivers, group membership, and neighbor adjacency.',
         'Multicast traffic not reaching receivers, IGMP issues.',
         '["troubleshooting", "multicast", "igmp", "pim"]',
-        TRUE, 55
+        TRUE, 55, NOW(), NOW()
     )
 ON CONFLICT (name) DO NOTHING;
 
@@ -99,8 +99,8 @@ ON CONFLICT (name) DO NOTHING;
 -- We use subqueries to keep this idempotent
 
 -- 1. Endpoint Unreachable
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listEndpointsDetails', 'Find the endpoint by IP or MAC address and confirm it exists in the fabric', 'Endpoint details including leaf, EPG, and interface attachment', FALSE),
@@ -117,8 +117,8 @@ AND NOT EXISTS (
 );
 
 -- 2. Duplicate IP Address Detection
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listEndpointsDuplicateIps', 'List all duplicate IP addresses detected in the fabric', 'List of IPs with multiple MAC/endpoint bindings', FALSE),
@@ -133,8 +133,8 @@ AND NOT EXISTS (
 );
 
 -- 3. Fabric Health Assessment
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_getHealthSummary', 'Get overall fabric health score and status', 'Health score breakdown by category', FALSE),
@@ -150,8 +150,8 @@ AND NOT EXISTS (
 );
 
 -- 4. Interface Troubleshooting
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listFabricInterfaces', 'Find the interface and check its operational status', 'Interface admin/oper state, speed, type', FALSE),
@@ -167,8 +167,8 @@ AND NOT EXISTS (
 );
 
 -- 5. BGP/Routing Problem Investigation
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listL3NeighborsSummary', 'Check BGP/OSPF neighbor status across the fabric', 'Neighbor state summary: established, idle, active', FALSE),
@@ -185,8 +185,8 @@ AND NOT EXISTS (
 );
 
 -- 6. Flow Path Analysis
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listEndpointsDetails', 'Verify that both source and destination endpoints exist in the fabric', 'Endpoint details for source and destination', FALSE),
@@ -202,8 +202,8 @@ AND NOT EXISTS (
 );
 
 -- 7. Configuration Compliance Check
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listConformanceSummaries', 'Get overall configuration compliance summary', 'Compliance score and violation counts by category', FALSE),
@@ -218,8 +218,8 @@ AND NOT EXISTS (
 );
 
 -- 8. Advisory & Alert Triage
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_getAdvisoriesSummary', 'Get overview of all advisories by severity and type', 'Advisory counts: PSIRT, field notice, EOL by severity', FALSE),
@@ -235,8 +235,8 @@ AND NOT EXISTS (
 );
 
 -- 9. Node/Switch Health Investigation
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listSwitchesSummary', 'Get switch health overview and identify the unhealthy node', 'Switch list with health scores and status', FALSE),
@@ -253,8 +253,8 @@ AND NOT EXISTS (
 );
 
 -- 10. Multicast Troubleshooting
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional
+INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
+SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
     (1, 'analyze_listMulticastRoutes', 'List multicast routes to verify group registration', 'Multicast route table: groups, sources, RPF interfaces', FALSE),

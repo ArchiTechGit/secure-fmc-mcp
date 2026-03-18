@@ -112,7 +112,7 @@ CREATE INDEX IF NOT EXISTS idx_system_prompt_sections_section_order ON system_pr
 CREATE INDEX IF NOT EXISTS idx_system_prompt_sections_is_active ON system_prompt_sections(is_active);
 
 -- Insert default API guidance
-INSERT INTO api_guidance (api_name, display_name, description, when_to_use, when_not_to_use, priority)
+INSERT INTO api_guidance (api_name, display_name, description, when_to_use, when_not_to_use, priority, created_at, updated_at)
 VALUES
     (
         'manage',
@@ -120,7 +120,7 @@ VALUES
         'Core management operations for VLAN, VRF, BD, EPG, and policy configuration',
         'Use for creating, updating, or deleting network configurations. Best for direct policy changes and object creation.',
         'Avoid for read-only operations or analysis tasks. Use analyze API instead for troubleshooting.',
-        10
+        10, NOW(), NOW()
     ),
     (
         'analyze',
@@ -128,7 +128,7 @@ VALUES
         'Network analysis and troubleshooting operations including connectivity, path tracing, and diagnostics',
         'Use for troubleshooting connectivity issues, validating configurations, and analyzing network behavior.',
         'Avoid for configuration changes or infrastructure management.',
-        20
+        20, NOW(), NOW()
     ),
     (
         'infra',
@@ -136,7 +136,7 @@ VALUES
         'Infrastructure operations for fabric nodes, interfaces, and physical topology',
         'Use for infrastructure queries, node status, interface configurations, and physical topology.',
         'Avoid for policy or logical network configuration. Use manage API for policy changes.',
-        30
+        30, NOW(), NOW()
     ),
     (
         'one_manage',
@@ -144,29 +144,32 @@ VALUES
         'Centralized network management operations across multiple network domains',
         'Use for cross-domain operations and centralized management tasks when multiple fabrics are involved.',
         'Avoid for single-fabric operations where direct manage API is more appropriate.',
-        40
+        40, NOW(), NOW()
     )
 ON CONFLICT (api_name) DO NOTHING;
 
 -- Insert default system prompt sections
-INSERT INTO system_prompt_sections (section_name, section_order, title, content)
+INSERT INTO system_prompt_sections (section_name, section_order, title, content, created_at, updated_at)
 VALUES
     (
         'overview',
         10,
         'API Overview',
-        'You are working with Cisco Nexus Dashboard APIs. The system provides four main API categories: Manage (configuration), Analyze (troubleshooting), Infrastructure (physical topology), and OneManage (cross-domain). Always select the most appropriate API based on the user task.'
+        'You are working with Cisco Nexus Dashboard APIs. The system provides four main API categories: Manage (configuration), Analyze (troubleshooting), Infrastructure (physical topology), and OneManage (cross-domain). Always select the most appropriate API based on the user task.',
+        NOW(), NOW()
     ),
     (
         'api_selection',
         20,
         'API Selection Guidelines',
-        'When selecting operations: 1) Identify if the task is configuration (manage), troubleshooting (analyze), infrastructure query (infra), or cross-domain (one_manage). 2) Check category guidance for specific operation types. 3) Consider workflows for common multi-step tasks. 4) Validate required parameters are available before attempting operations.'
+        'When selecting operations: 1) Identify if the task is configuration (manage), troubleshooting (analyze), infrastructure query (infra), or cross-domain (one_manage). 2) Check category guidance for specific operation types. 3) Consider workflows for common multi-step tasks. 4) Validate required parameters are available before attempting operations.',
+        NOW(), NOW()
     ),
     (
         'best_practices',
         30,
         'Best Practices',
-        'Follow these practices: 1) Always verify prerequisites before configuration changes. 2) Use read operations to validate state before and after changes. 3) For complex tasks, break them into logical steps. 4) Handle errors gracefully and provide clear feedback. 5) Log all configuration changes for audit purposes.'
+        'Follow these practices: 1) Always verify prerequisites before configuration changes. 2) Use read operations to validate state before and after changes. 3) For complex tasks, break them into logical steps. 4) Handle errors gracefully and provide clear feedback. 5) Log all configuration changes for audit purposes.',
+        NOW(), NOW()
     )
 ON CONFLICT (section_name) DO NOTHING;
