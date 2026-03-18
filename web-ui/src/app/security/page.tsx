@@ -299,7 +299,7 @@ export default function SecurityPage() {
         name: roleForm.name,
         description: roleForm.description,
         edit_mode_enabled: roleForm.edit_mode_enabled,
-        tool_profile_id: roleForm.tool_profile_id,
+        tool_profile_id: roleForm.tool_profile_id ?? 0,
       });
       await api.roles.setOperations(editingRole.id, {
         operations: roleForm.operations || [],
