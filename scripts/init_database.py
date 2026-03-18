@@ -1,7 +1,13 @@
-"""Database initialization script."""
+"""Database initialization script.
+
+Handles both fresh deployments (SQLAlchemy create_all) and upgrades
+(sequential migration files).  Migrations are tracked via a
+schema_migrations table so each file runs exactly once.
+"""
 
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -9,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.config import get_settings, init_db
+from src.config.database import get_db
 from src.services.credential_manager import CredentialManager
 
 logging.basicConfig(
@@ -16,6 +23,80 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+MIGRATIONS_DIR = Path(__file__).parent.parent / "src" / "config" / "migrations"
+
+
+async def run_migrations():
+    """Apply pending SQL migration files in order.
+
+    Tracks applied migrations in a schema_migrations table so each file
+    is executed exactly once.  This allows existing deployments to pick up
+    new columns/tables that SQLAlchemy create_all() cannot add to existing
+    tables.
+    """
+    db = get_db()
+
+    async with db.async_engine.begin() as conn:
+        # Ensure tracking table exists
+        await conn.execute(
+            __import__("sqlalchemy").text(
+                "CREATE TABLE IF NOT EXISTS schema_migrations ("
+                "  id SERIAL PRIMARY KEY,"
+                "  filename VARCHAR(255) NOT NULL UNIQUE,"
+                "  applied_at TIMESTAMP DEFAULT NOW() NOT NULL"
+                ")"
+            )
+        )
+
+        # Get already-applied migrations
+        result = await conn.execute(
+            __import__("sqlalchemy").text(
+                "SELECT filename FROM schema_migrations ORDER BY filename"
+            )
+        )
+        applied = {row[0] for row in result.fetchall()}
+
+    # Discover and sort migration files
+    if not MIGRATIONS_DIR.is_dir():
+        logger.info("No migrations directory found, skipping migrations")
+        return
+
+    migration_files = sorted(
+        f for f in MIGRATIONS_DIR.iterdir()
+        if f.suffix == ".sql" and f.name not in applied
+    )
+
+    if not migration_files:
+        logger.info("No pending migrations")
+        return
+
+    from sqlalchemy import text
+
+    for migration_file in migration_files:
+        logger.info(f"Applying migration: {migration_file.name}")
+        sql = migration_file.read_text()
+
+        try:
+            async with db.async_engine.begin() as conn:
+                # Execute the migration (may contain multiple statements)
+                for statement in sql.split(";"):
+                    statement = statement.strip()
+                    if statement and not statement.startswith("--"):
+                        await conn.execute(text(statement))
+
+                # Record it as applied
+                await conn.execute(
+                    text(
+                        "INSERT INTO schema_migrations (filename) VALUES (:f)"
+                    ),
+                    {"f": migration_file.name},
+                )
+
+            logger.info(f"Migration applied: {migration_file.name}")
+        except Exception as e:
+            logger.error(f"Migration {migration_file.name} failed: {e}")
+            raise
 
 
 async def main():
@@ -26,10 +107,15 @@ async def main():
     Use the Web UI to manage cluster credentials after initial setup.
     """
     try:
-        # Initialize database
+        # Initialize database (creates tables from SQLAlchemy models)
         logger.info("Initializing database schema...")
         await init_db()
         logger.info("Database initialized successfully")
+
+        # Apply pending migrations (handles ALTER TABLE, new tables, data fixes
+        # that create_all cannot do on existing databases)
+        logger.info("Checking for pending migrations...")
+        await run_migrations()
 
         # Check if default cluster already exists
         credential_manager = CredentialManager()

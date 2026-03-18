@@ -1,6 +1,9 @@
 #!/bin/bash
 # Start FastAPI Web API with HTTPS for external access and HTTP for internal container communication
 
+echo "Initializing database and running migrations..."
+python scripts/init_database.py
+
 echo "Starting FastAPI Web API..."
 
 SSL_ENABLED="${SSL_ENABLED:-true}"

@@ -1,5 +1,12 @@
 -- Nexus Dashboard MCP Server Database Schema
 
+-- Schema migrations tracking (keeps track of which migration files have been applied)
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL UNIQUE,
+    applied_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
 -- Clusters table for storing Nexus Dashboard cluster credentials
 CREATE TABLE IF NOT EXISTS clusters (
     id SERIAL PRIMARY KEY,
