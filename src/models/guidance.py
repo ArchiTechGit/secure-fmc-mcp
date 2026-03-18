@@ -178,6 +178,10 @@ class WorkflowStep(Base):
     expected_output = Column(Text)
     optional = Column(Boolean, default=False)
     fallback_operation = Column(String(255))
+    input_mapping = Column(JSONB, default=dict)   # {"param": "{{step_1.output.field}}"}
+    output_key = Column(String(255))              # Key to store step output
+    condition_type = Column(String(50), default="always")  # "always", "if_equals", "if_not_empty", "if_error"
+    condition = Column(JSONB, default=dict)       # Condition details
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     # Relationships
@@ -206,6 +210,10 @@ class WorkflowStep(Base):
             "expected_output": self.expected_output,
             "optional": self.optional,
             "fallback_operation": self.fallback_operation,
+            "input_mapping": self.input_mapping if self.input_mapping else {},
+            "output_key": self.output_key,
+            "condition_type": self.condition_type or "always",
+            "condition": self.condition if self.condition else {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -282,3 +290,141 @@ class SystemPromptSection(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class WorkflowExecution(Base):
+    """Model for tracking workflow execution runs."""
+
+    __tablename__ = "workflow_executions"
+    __allow_unmapped__ = True
+
+    id = Column(Integer, primary_key=True, index=True)
+    workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    status = Column(String(50), default="running", nullable=False)  # running, completed, failed, cancelled
+    context = Column(JSONB, default=dict)  # Execution context/variables
+    error_message = Column(Text)
+    started_at = Column(DateTime, default=func.now(), nullable=False)
+    completed_at = Column(DateTime)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationships
+    workflow = relationship("Workflow")
+    step_executions = relationship(
+        "WorkflowStepExecution",
+        back_populates="execution",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="WorkflowStepExecution.step_order"
+    )
+
+    def to_dict(self, include_steps: bool = True) -> dict:
+        data = {
+            "id": self.id,
+            "workflow_id": self.workflow_id,
+            "user_id": self.user_id,
+            "status": self.status,
+            "context": self.context if self.context else {},
+            "error_message": self.error_message,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_steps and self.step_executions:
+            data["step_executions"] = [se.to_dict() for se in self.step_executions]
+        return data
+
+
+class WorkflowStepExecution(Base):
+    """Model for tracking individual step executions within a workflow run."""
+
+    __tablename__ = "workflow_step_executions"
+    __allow_unmapped__ = True
+
+    id = Column(Integer, primary_key=True, index=True)
+    execution_id = Column(Integer, ForeignKey("workflow_executions.id", ondelete="CASCADE"), nullable=False, index=True)
+    step_order = Column(Integer, nullable=False)
+    operation_name = Column(String(255), nullable=False)
+    status = Column(String(50), default="pending", nullable=False)  # pending, running, completed, failed, skipped
+    input_data = Column(JSONB, default=dict)
+    output_data = Column(JSONB, default=dict)
+    error_message = Column(Text)
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationships
+    execution = relationship("WorkflowExecution", back_populates="step_executions")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "execution_id": self.execution_id,
+            "step_order": self.step_order,
+            "operation_name": self.operation_name,
+            "status": self.status,
+            "input_data": self.input_data if self.input_data else {},
+            "output_data": self.output_data if self.output_data else {},
+            "error_message": self.error_message,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class UseCase(Base):
+    """Model for use cases as first-class entities."""
+
+    __tablename__ = "use_cases"
+    __allow_unmapped__ = True
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    display_name = Column(String(255), nullable=False)
+    description = Column(Text)
+    category = Column(String(100), index=True)
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    workflows = relationship(
+        "Workflow",
+        secondary="use_case_workflows",
+        lazy="selectin"
+    )
+
+    def to_dict(self, include_workflows: bool = True) -> dict:
+        data = {
+            "id": self.id,
+            "name": self.name,
+            "display_name": self.display_name,
+            "description": self.description,
+            "category": self.category,
+            "is_active": self.is_active,
+            "workflows_count": len(self.workflows) if self.workflows else 0,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_workflows and self.workflows:
+            data["workflows"] = [
+                {"id": w.id, "name": w.name, "display_name": w.display_name}
+                for w in self.workflows
+            ]
+        return data
+
+
+class UseCaseWorkflow(Base):
+    """Association table for use cases to workflows (M:M)."""
+
+    __tablename__ = "use_case_workflows"
+    __allow_unmapped__ = True
+
+    id = Column(Integer, primary_key=True, index=True)
+    use_case_id = Column(Integer, ForeignKey("use_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    workflow_id = Column(Integer, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("use_case_id", "workflow_id", name="uq_use_case_workflow"),
+    )

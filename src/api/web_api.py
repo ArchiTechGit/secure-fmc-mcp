@@ -24,6 +24,7 @@ from src.services.user_service import UserService
 from src.services.role_service import RoleService
 from src.services.ldap_service import LDAPService
 from src.services.guidance_service import GuidanceService
+from src.services.tool_profile_service import ToolProfileService
 from src.services.nexus_api import NexusAPIClient
 from src.utils.encryption import decrypt_password
 from src.api.mcp_transport import router as mcp_router
@@ -256,6 +257,34 @@ class AssignRolesRequest(BaseModel):
     role_ids: List[int]
 
 
+# ==================== Tool Profile Pydantic Models ====================
+
+class ToolProfileCreate(BaseModel):
+    """Request model for creating a tool profile."""
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    max_tools: int = Field(100, ge=0)  # 0 = no limit (Full Access)
+    operations: Optional[List[str]] = None
+
+
+class ToolProfileUpdate(BaseModel):
+    """Request model for updating a tool profile."""
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    max_tools: Optional[int] = Field(None, ge=0)
+    is_active: Optional[bool] = None
+
+
+class SetProfileOperationsRequest(BaseModel):
+    """Request model for replacing tool profile operations."""
+    operations: List[str]
+
+
+class AssignToolProfileRequest(BaseModel):
+    """Request model for assigning a tool profile to a user."""
+    tool_profile_id: Optional[int] = None  # None clears the assignment
+
+
 # ==================== User Cluster Pydantic Models ====================
 
 class AssignClustersRequest(BaseModel):
@@ -476,6 +505,10 @@ class WorkflowStepCreate(BaseModel):
     expected_output: Optional[str] = None
     optional: bool = False
     fallback_operation: Optional[str] = None
+    input_mapping: Optional[dict] = None
+    output_key: Optional[str] = None
+    condition_type: Optional[str] = "always"
+    condition: Optional[dict] = None
 
 
 class ToolOverrideCreate(BaseModel):
@@ -495,12 +528,47 @@ class SystemPromptSectionCreate(BaseModel):
     is_active: bool = True
 
 
+class WorkflowExecutionResponse(BaseModel):
+    """Response model for workflow execution."""
+    id: int
+    workflow_id: int
+    user_id: Optional[int] = None
+    status: str
+    context: Optional[dict] = None
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+
+class UseCaseCreate(BaseModel):
+    """Request model for creating a use case."""
+    name: str
+    display_name: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    is_active: bool = True
+
+
+class UseCaseUpdate(BaseModel):
+    """Request model for updating a use case."""
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class SetUseCaseWorkflowsRequest(BaseModel):
+    """Request model for setting use case workflows."""
+    workflow_ids: List[int]
+
+
 # Initialize services
 credential_manager = CredentialManager()
 user_service = UserService()
 role_service = RoleService()
 ldap_service = LDAPService()
 guidance_service = GuidanceService()
+tool_profile_service = ToolProfileService()
 settings = get_settings()
 db = get_db()
 
@@ -2114,6 +2182,101 @@ async def delete_ldap_cluster_mapping(
     return None
 
 
+# ==================== Tool Profiles ====================
+
+@app.get("/api/tool-profiles")
+async def list_tool_profiles(_user: User = Depends(require_auth)):
+    """List all tool profiles (authenticated users)."""
+    profiles = await tool_profile_service.list_profiles()
+    return [p.to_dict() for p in profiles]
+
+
+@app.post("/api/tool-profiles", status_code=201)
+async def create_tool_profile(
+    data: ToolProfileCreate,
+    _admin: User = Depends(require_superuser),
+):
+    """Create a new tool profile (superuser only)."""
+    try:
+        profile = await tool_profile_service.create_profile(
+            name=data.name,
+            description=data.description,
+            max_tools=data.max_tools,
+            operations=data.operations,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return profile.to_dict()
+
+
+@app.get("/api/tool-profiles/{profile_id}")
+async def get_tool_profile(profile_id: int, _user: User = Depends(require_auth)):
+    """Get a specific tool profile by ID."""
+    profile = await tool_profile_service.get_profile(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Tool profile not found")
+    return profile.to_dict()
+
+
+@app.put("/api/tool-profiles/{profile_id}")
+async def update_tool_profile(
+    profile_id: int,
+    data: ToolProfileUpdate,
+    _admin: User = Depends(require_superuser),
+):
+    """Update a tool profile (superuser only)."""
+    try:
+        profile = await tool_profile_service.update_profile(
+            profile_id,
+            **{k: v for k, v in data.dict().items() if v is not None},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    if not profile:
+        raise HTTPException(status_code=404, detail="Tool profile not found")
+    return profile.to_dict()
+
+
+@app.delete("/api/tool-profiles/{profile_id}", status_code=204)
+async def delete_tool_profile(
+    profile_id: int,
+    _admin: User = Depends(require_superuser),
+):
+    """Delete a tool profile (superuser only). Assigned users will have their profile cleared."""
+    if not await tool_profile_service.delete_profile(profile_id):
+        raise HTTPException(status_code=404, detail="Tool profile not found")
+    return None
+
+
+@app.put("/api/tool-profiles/{profile_id}/operations")
+async def set_profile_operations(
+    profile_id: int,
+    data: SetProfileOperationsRequest,
+    _admin: User = Depends(require_superuser),
+):
+    """Replace the full set of operations for a tool profile (superuser only)."""
+    profile = await tool_profile_service.set_profile_operations(profile_id, data.operations)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Tool profile not found")
+    return profile.to_dict()
+
+
+@app.put("/api/users/{user_id}/tool-profile")
+async def assign_user_tool_profile(
+    user_id: int,
+    data: AssignToolProfileRequest,
+    _admin: User = Depends(require_superuser),
+):
+    """Assign or remove a tool profile for a user (superuser only).
+
+    Pass tool_profile_id=null to clear the assignment and revert to role-based filtering.
+    """
+    success = await tool_profile_service.assign_profile_to_user(user_id, data.tool_profile_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User or tool profile not found")
+    return {"message": "Tool profile assigned successfully"}
+
+
 # ==================== Guidance System: API Guidance ====================
 
 @app.get("/api/guidance/apis")
@@ -2283,6 +2446,122 @@ async def delete_tool_override(operation_name: str, _admin: User = Depends(requi
     """Delete tool override."""
     if not await guidance_service.delete_tool_override(operation_name):
         raise HTTPException(status_code=404, detail="Tool override not found")
+
+
+@app.post("/api/tool-descriptions/generate-batch")
+async def generate_tool_descriptions_batch(
+    api_name: str = Query("all"),
+    _admin: User = Depends(require_superuser),
+):
+    """Generate tool description overrides from OpenAPI specs.
+
+    Extracts rich descriptions from the loaded OpenAPI specs and creates
+    tool description overrides in the database. Existing overrides that
+    already have enhanced descriptions are skipped.
+    """
+    try:
+        counts = await guidance_service.generate_descriptions_from_spec(api_name)
+        return counts
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== Guidance System: Workflow Validation & Execution ====================
+
+@app.post("/api/guidance/workflows/{workflow_id}/validate")
+async def validate_workflow(workflow_id: int, _user: User = Depends(require_auth)):
+    """Validate a workflow definition.
+
+    Checks all operation names, step ordering, and input mapping references.
+    """
+    result = await guidance_service.validate_workflow(workflow_id)
+    return result
+
+
+@app.get("/api/guidance/workflow-executions")
+async def list_workflow_executions(
+    workflow_id: Optional[int] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    _user: User = Depends(require_auth),
+):
+    """List workflow executions."""
+    executions = await guidance_service.list_workflow_executions(workflow_id=workflow_id, limit=limit)
+    return [e.to_dict() for e in executions]
+
+
+@app.get("/api/guidance/workflow-executions/{execution_id}")
+async def get_workflow_execution(execution_id: int, _user: User = Depends(require_auth)):
+    """Get workflow execution details including all step results."""
+    execution = await guidance_service.get_workflow_execution(execution_id)
+    if not execution:
+        raise HTTPException(status_code=404, detail="Execution not found")
+    return execution.to_dict()
+
+
+# ==================== Guidance System: Use Cases ====================
+
+@app.get("/api/guidance/use-cases")
+async def list_use_cases(
+    category: Optional[str] = Query(None),
+    _user: User = Depends(require_auth),
+):
+    """List use cases, optionally filtered by category."""
+    use_cases = await guidance_service.list_use_cases(category=category, active_only=False)
+    return [uc.to_dict() for uc in use_cases]
+
+
+@app.post("/api/guidance/use-cases", status_code=201)
+async def create_use_case(data: UseCaseCreate, _admin: User = Depends(require_superuser)):
+    """Create a new use case."""
+    try:
+        use_case = await guidance_service.create_use_case(**data.dict())
+        return use_case.to_dict()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/guidance/use-cases/{use_case_id}")
+async def get_use_case(use_case_id: int, _user: User = Depends(require_auth)):
+    """Get use case details including associated workflows."""
+    use_case = await guidance_service.get_use_case(use_case_id)
+    if not use_case:
+        raise HTTPException(status_code=404, detail="Use case not found")
+    return use_case.to_dict()
+
+
+@app.put("/api/guidance/use-cases/{use_case_id}")
+async def update_use_case(
+    use_case_id: int,
+    data: UseCaseUpdate,
+    _admin: User = Depends(require_superuser),
+):
+    """Update use case properties."""
+    use_case = await guidance_service.update_use_case(
+        use_case_id, **{k: v for k, v in data.dict().items() if v is not None}
+    )
+    if not use_case:
+        raise HTTPException(status_code=404, detail="Use case not found")
+    return use_case.to_dict()
+
+
+@app.delete("/api/guidance/use-cases/{use_case_id}", status_code=204)
+async def delete_use_case(use_case_id: int, _admin: User = Depends(require_superuser)):
+    """Delete use case and all its workflow associations."""
+    if not await guidance_service.delete_use_case(use_case_id):
+        raise HTTPException(status_code=404, detail="Use case not found")
+
+
+@app.put("/api/guidance/use-cases/{use_case_id}/workflows")
+async def set_use_case_workflows(
+    use_case_id: int,
+    data: SetUseCaseWorkflowsRequest,
+    _admin: User = Depends(require_superuser),
+):
+    """Set (replace) the workflows associated with a use case."""
+    use_case = await guidance_service.set_use_case_workflows(use_case_id, data.workflow_ids)
+    if not use_case:
+        raise HTTPException(status_code=404, detail="Use case not found")
+    return use_case.to_dict()
 
 
 # ==================== Guidance System: System Prompt ====================

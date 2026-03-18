@@ -709,3 +709,394 @@ class GuidanceService:
 
         # No override, return original
         return original_description
+
+    # ==================== Batch Description Generation ====================
+
+    async def generate_descriptions_from_spec(self, api_name: str) -> Dict[str, int]:
+        """Generate tool description overrides from OpenAPI spec.
+
+        Extracts rich descriptions from the loaded OpenAPI spec including
+        full description text, parameter details, and request body fields.
+
+        Args:
+            api_name: Name of the API to generate descriptions for (or 'all')
+
+        Returns:
+            Dict with counts: {"created": N, "updated": N, "skipped": N}
+        """
+        from src.core.api_loader import APILoader
+        from src.core.api_registry import APIRegistry
+
+        loader = APILoader()
+        counts = {"created": 0, "updated": 0, "skipped": 0}
+
+        # Determine which APIs to process
+        if api_name == "all":
+            apis = APIRegistry.get_enabled_apis()
+        else:
+            api_def = APIRegistry.get_api(api_name)
+            if not api_def:
+                raise ValueError(f"Unknown API: {api_name}")
+            apis = [api_def]
+
+        for api_def in apis:
+            spec = loader.load_openapi_spec(api_def.spec_file)
+            if not spec:
+                continue
+
+            paths = spec.get("paths", {})
+            for path, methods in paths.items():
+                for method, operation in methods.items():
+                    if method in ("parameters", "summary", "description"):
+                        continue
+
+                    operation_id = operation.get("operationId")
+                    if not operation_id:
+                        continue
+
+                    tool_name = f"{api_def.name}_{operation_id}"
+                    summary = operation.get("summary", "")
+                    description = operation.get("description", "")
+
+                    # Build rich description from spec
+                    parts = []
+                    if description:
+                        parts.append(description)
+                    elif summary:
+                        parts.append(summary)
+
+                    # Add parameter details
+                    params = operation.get("parameters", [])
+                    if params:
+                        param_details = []
+                        for p in params:
+                            p_name = p.get("name", "")
+                            p_desc = p.get("description", "")
+                            p_required = p.get("required", False)
+                            req_marker = " (required)" if p_required else ""
+                            if p_desc:
+                                param_details.append(f"  - {p_name}{req_marker}: {p_desc}")
+                            else:
+                                param_details.append(f"  - {p_name}{req_marker}")
+                        if param_details:
+                            parts.append("Parameters:\n" + "\n".join(param_details))
+
+                    # Add request body info
+                    request_body = operation.get("requestBody", {})
+                    if request_body:
+                        rb_desc = request_body.get("description", "")
+                        if rb_desc:
+                            parts.append(f"Request Body: {rb_desc}")
+                        # Try to extract schema properties
+                        content = request_body.get("content", {})
+                        json_content = content.get("application/json", {})
+                        schema = json_content.get("schema", {})
+                        properties = schema.get("properties", {})
+                        if properties:
+                            prop_details = []
+                            required_props = schema.get("required", [])
+                            for prop_name, prop_schema in list(properties.items())[:10]:
+                                prop_desc = prop_schema.get("description", "")
+                                req_marker = " (required)" if prop_name in required_props else ""
+                                if prop_desc:
+                                    prop_details.append(f"  - {prop_name}{req_marker}: {prop_desc}")
+                                else:
+                                    prop_details.append(f"  - {prop_name}{req_marker}")
+                            if prop_details:
+                                parts.append("Body Fields:\n" + "\n".join(prop_details))
+
+                    enhanced_description = "\n\n".join(parts) if parts else None
+
+                    if not enhanced_description:
+                        counts["skipped"] += 1
+                        continue
+
+                    # Upsert the override
+                    try:
+                        existing = await self.get_tool_override(tool_name)
+                        if existing and existing.enhanced_description:
+                            counts["skipped"] += 1
+                            continue
+
+                        await self.upsert_tool_override(
+                            operation_name=tool_name,
+                            enhanced_description=enhanced_description,
+                        )
+                        if existing:
+                            counts["updated"] += 1
+                        else:
+                            counts["created"] += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to upsert override for {tool_name}: {e}")
+                        counts["skipped"] += 1
+
+        logger.info(f"Generated descriptions: {counts}")
+        return counts
+
+    # ==================== Workflow Validation ====================
+
+    async def validate_workflow(self, workflow_id: int) -> Dict[str, any]:
+        """Validate a workflow definition.
+
+        Checks:
+        - All operation names exist in API endpoints with correct prefix
+        - Input mapping references valid earlier steps
+        - Step order is sequential
+
+        Returns:
+            Dict with "valid" (bool) and "errors" (list of strings)
+        """
+        workflow = await self.get_workflow(workflow_id)
+        if not workflow:
+            return {"valid": False, "errors": ["Workflow not found"]}
+
+        errors = []
+
+        if not workflow.steps:
+            errors.append("Workflow has no steps")
+            return {"valid": False, "errors": errors}
+
+        # Get all valid operation names from API endpoints
+        from src.models.api_endpoint import APIEndpoint
+        async with self.db.session() as session:
+            result = await session.execute(select(APIEndpoint))
+            endpoints = result.scalars().all()
+            valid_ops = {f"{ep.api_name}_{ep.operation_id}" for ep in endpoints}
+
+        step_output_keys: Dict[str, str] = {}
+        prev_order = 0
+
+        for step in workflow.steps:
+            # Check step order
+            if step.step_order <= prev_order and prev_order > 0:
+                errors.append(f"Step {step.step_order}: order should be greater than {prev_order}")
+            prev_order = step.step_order
+
+            # Check operation exists
+            if step.operation_name not in valid_ops:
+                # Check if it's missing the prefix
+                matching = [op for op in valid_ops if op.endswith(f"_{step.operation_name}")]
+                if matching:
+                    errors.append(
+                        f"Step {step.step_order}: operation '{step.operation_name}' needs prefix. "
+                        f"Did you mean: {', '.join(matching[:3])}?"
+                    )
+                else:
+                    errors.append(f"Step {step.step_order}: operation '{step.operation_name}' not found")
+
+            # Check fallback operation
+            if step.fallback_operation and step.fallback_operation not in valid_ops:
+                errors.append(f"Step {step.step_order}: fallback operation '{step.fallback_operation}' not found")
+
+            # Track output keys
+            if step.output_key:
+                step_output_keys[f"step_{step.step_order}"] = step.output_key
+
+            # Validate input mapping references
+            if step.input_mapping:
+                import re
+                for param, mapping_value in step.input_mapping.items():
+                    if isinstance(mapping_value, str):
+                        refs = re.findall(r'\{\{(step_\d+)\.', mapping_value)
+                        for ref in refs:
+                            ref_order = int(ref.split("_")[1])
+                            if ref_order >= step.step_order:
+                                errors.append(
+                                    f"Step {step.step_order}: input_mapping references "
+                                    f"'{ref}' which is not an earlier step"
+                                )
+
+        return {"valid": len(errors) == 0, "errors": errors}
+
+    # ==================== Workflow Execution Tracking ====================
+
+    async def create_workflow_execution(
+        self, workflow_id: int, user_id: Optional[int] = None, context: Optional[Dict] = None
+    ) -> "WorkflowExecution":
+        """Start a new workflow execution."""
+        from src.models.guidance import WorkflowExecution
+        async with self.db.session() as session:
+            execution = WorkflowExecution(
+                workflow_id=workflow_id,
+                user_id=user_id,
+                status="running",
+                context=context or {},
+            )
+            session.add(execution)
+            await session.commit()
+            await session.refresh(execution)
+            return execution
+
+    async def get_workflow_execution(self, execution_id: int) -> Optional["WorkflowExecution"]:
+        """Get workflow execution by ID."""
+        from src.models.guidance import WorkflowExecution
+        async with self.db.session() as session:
+            result = await session.execute(
+                select(WorkflowExecution)
+                .options(selectinload(WorkflowExecution.step_executions))
+                .where(WorkflowExecution.id == execution_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def list_workflow_executions(
+        self, workflow_id: Optional[int] = None, limit: int = 50
+    ) -> List["WorkflowExecution"]:
+        """List workflow executions."""
+        from src.models.guidance import WorkflowExecution
+        async with self.db.session() as session:
+            query = select(WorkflowExecution).options(
+                selectinload(WorkflowExecution.step_executions)
+            )
+            if workflow_id:
+                query = query.where(WorkflowExecution.workflow_id == workflow_id)
+            query = query.order_by(WorkflowExecution.created_at.desc()).limit(limit)
+            result = await session.execute(query)
+            return list(result.scalars().all())
+
+    async def update_workflow_execution(
+        self, execution_id: int, status: str, error_message: Optional[str] = None
+    ) -> Optional["WorkflowExecution"]:
+        """Update workflow execution status."""
+        from src.models.guidance import WorkflowExecution
+        from sqlalchemy.sql import func as sql_func
+        async with self.db.session() as session:
+            result = await session.execute(
+                select(WorkflowExecution).where(WorkflowExecution.id == execution_id)
+            )
+            execution = result.scalar_one_or_none()
+            if not execution:
+                return None
+            execution.status = status
+            if error_message:
+                execution.error_message = error_message
+            if status in ("completed", "failed", "cancelled"):
+                from datetime import datetime
+                execution.completed_at = datetime.utcnow()
+            await session.commit()
+            await session.refresh(execution)
+            return execution
+
+    async def create_step_execution(
+        self, execution_id: int, step_order: int, operation_name: str,
+        input_data: Optional[Dict] = None
+    ) -> "WorkflowStepExecution":
+        """Record a step execution."""
+        from src.models.guidance import WorkflowStepExecution
+        from datetime import datetime
+        async with self.db.session() as session:
+            step_exec = WorkflowStepExecution(
+                execution_id=execution_id,
+                step_order=step_order,
+                operation_name=operation_name,
+                status="running",
+                input_data=input_data or {},
+                started_at=datetime.utcnow(),
+            )
+            session.add(step_exec)
+            await session.commit()
+            await session.refresh(step_exec)
+            return step_exec
+
+    async def update_step_execution(
+        self, step_exec_id: int, status: str,
+        output_data: Optional[Dict] = None, error_message: Optional[str] = None
+    ) -> Optional["WorkflowStepExecution"]:
+        """Update a step execution."""
+        from src.models.guidance import WorkflowStepExecution
+        from datetime import datetime
+        async with self.db.session() as session:
+            result = await session.execute(
+                select(WorkflowStepExecution).where(WorkflowStepExecution.id == step_exec_id)
+            )
+            step_exec = result.scalar_one_or_none()
+            if not step_exec:
+                return None
+            step_exec.status = status
+            if output_data:
+                step_exec.output_data = output_data
+            if error_message:
+                step_exec.error_message = error_message
+            if status in ("completed", "failed", "skipped"):
+                step_exec.completed_at = datetime.utcnow()
+            await session.commit()
+            await session.refresh(step_exec)
+            return step_exec
+
+    # ==================== Use Case Methods ====================
+
+    async def create_use_case(self, name: str, display_name: str, **kwargs) -> "UseCase":
+        """Create a new use case."""
+        from src.models.guidance import UseCase
+        async with self.db.session() as session:
+            result = await session.execute(select(UseCase).where(UseCase.name == name))
+            if result.scalar_one_or_none():
+                raise ValueError(f"Use case '{name}' already exists")
+            use_case = UseCase(name=name, display_name=display_name, **kwargs)
+            session.add(use_case)
+            await session.commit()
+            await session.refresh(use_case)
+            return use_case
+
+    async def get_use_case(self, use_case_id: int) -> Optional["UseCase"]:
+        """Get use case by ID."""
+        from src.models.guidance import UseCase
+        async with self.db.session() as session:
+            result = await session.execute(
+                select(UseCase).where(UseCase.id == use_case_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def list_use_cases(self, category: Optional[str] = None, active_only: bool = True) -> List["UseCase"]:
+        """List use cases."""
+        from src.models.guidance import UseCase
+        async with self.db.session() as session:
+            query = select(UseCase)
+            if active_only:
+                query = query.where(UseCase.is_active == True)
+            if category:
+                query = query.where(UseCase.category == category)
+            query = query.order_by(UseCase.display_name)
+            result = await session.execute(query)
+            return list(result.scalars().all())
+
+    async def update_use_case(self, use_case_id: int, **kwargs) -> Optional["UseCase"]:
+        """Update use case."""
+        from src.models.guidance import UseCase
+        async with self.db.session() as session:
+            result = await session.execute(
+                select(UseCase).where(UseCase.id == use_case_id)
+            )
+            use_case = result.scalar_one_or_none()
+            if not use_case:
+                return None
+            for k, v in kwargs.items():
+                if hasattr(use_case, k) and k not in ("id", "name", "created_at"):
+                    setattr(use_case, k, v)
+            await session.commit()
+            await session.refresh(use_case)
+            return use_case
+
+    async def delete_use_case(self, use_case_id: int) -> bool:
+        """Delete use case."""
+        from src.models.guidance import UseCase
+        async with self.db.session() as session:
+            result = await session.execute(
+                delete(UseCase).where(UseCase.id == use_case_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    async def set_use_case_workflows(self, use_case_id: int, workflow_ids: List[int]) -> Optional["UseCase"]:
+        """Set workflows for a use case."""
+        from src.models.guidance import UseCase, UseCaseWorkflow
+        async with self.db.session() as session:
+            result = await session.execute(select(UseCase).where(UseCase.id == use_case_id))
+            if not result.scalar_one_or_none():
+                return None
+            await session.execute(
+                delete(UseCaseWorkflow).where(UseCaseWorkflow.use_case_id == use_case_id)
+            )
+            for wf_id in workflow_ids:
+                session.add(UseCaseWorkflow(use_case_id=use_case_id, workflow_id=wf_id))
+            await session.commit()
+        return await self.get_use_case(use_case_id)

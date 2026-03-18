@@ -62,6 +62,7 @@ class SSEConnection:
     user: Optional[User] = None
     allowed_operations: Optional[Set[str]] = None
     has_edit_mode: bool = False
+    assigned_clusters: Optional[List[str]] = None  # Cluster names the user can access
 
 _sse_connections: Dict[str, SSEConnection] = {}
 
@@ -87,7 +88,7 @@ async def get_mcp_instance() -> NexusDashboardMCP:
     global _mcp_instance, _mcp_initialized
 
     if _mcp_instance is None:
-        _mcp_instance = NexusDashboardMCP(cluster_name="default")
+        _mcp_instance = NexusDashboardMCP()  # No cluster binding; resolved per-request
 
     if not _mcp_initialized:
         # Load all APIs
@@ -190,43 +191,75 @@ async def validate_token(authorization: Optional[str]) -> AuthResult:
 
 
 def filter_tools_for_user(tools: List[Dict], auth_result: AuthResult) -> List[Dict]:
-    """Filter tools based on user's allowed operations.
+    """Filter tools based on user's tool profile or role-based allowed operations.
+
+    Resolution priority:
+      1. Legacy token or no user context -> all tools (backward compatible)
+      2. User has an active tool profile -> filter to profile operations
+         (max_tools=0 with no operations = Full Access profile, returns all tools)
+      3. Superuser without a tool profile -> all tools
+      4. Role-based allowed operations -> filter to those operations
+      5. No profile, no roles -> no tools
 
     Args:
-        tools: List of tool dictionaries
-        auth_result: Authentication result with user permissions
+        tools: List of tool dictionaries from the MCP server
+        auth_result: Authentication result with user context and permissions
 
     Returns:
         Filtered list of tools the user is allowed to use
     """
-    # If no user context or using legacy token, return all tools
+    # Legacy token or no user context -> full access (backward compatible behaviour)
     if auth_result.is_legacy_token or not auth_result.user:
         return tools
 
-    # If user is superuser, return all tools
-    if auth_result.user.is_superuser:
+    user = auth_result.user
+
+    # 1. Tool profile takes priority (even for superusers who have a profile assigned)
+    if user.tool_profile_id and hasattr(user, "tool_profile") and user.tool_profile:
+        profile = user.tool_profile
+        if profile.is_active:
+            # max_tools=0 with no operations signals the Full Access profile
+            if profile.max_tools == 0 and not profile.operations:
+                logger.debug(
+                    f"User '{user.username}' has Full Access profile '{profile.name}'"
+                )
+                return tools
+
+            profile_ops = profile.get_operation_names()
+            filtered = [t for t in tools if t.get("name") in profile_ops]
+            logger.debug(
+                f"Tool profile '{profile.name}' filtered {len(tools)} -> "
+                f"{len(filtered)} tools for user '{user.username}'"
+            )
+            return filtered
+        else:
+            logger.warning(
+                f"User '{user.username}' has inactive tool profile '{profile.name}', "
+                "falling through to role-based filtering"
+            )
+
+    # 2. Superuser without an active profile -> all tools
+    if user.is_superuser:
         return tools
 
-    # If no operations are allowed, filter to read-only operations
+    # 3. Role-based filtering using operations from assigned roles
     allowed_ops = auth_result.allowed_operations
     if not allowed_ops:
-        # No explicit operations = no tools (or could filter to GET-only)
-        logger.info(f"User '{auth_result.user.username}' has no allowed operations")
+        logger.info(f"User '{user.username}' has no allowed operations")
         return []
 
-    # Filter tools by allowed operations
-    filtered = []
-    for tool in tools:
-        tool_name = tool.get("name", "")
-        if tool_name in allowed_ops:
-            filtered.append(tool)
-
-    logger.debug(f"Filtered {len(tools)} tools to {len(filtered)} for user '{auth_result.user.username}'")
+    filtered = [t for t in tools if t.get("name") in allowed_ops]
+    logger.debug(
+        f"Filtered {len(tools)} tools to {len(filtered)} for user '{user.username}'"
+    )
     return filtered
 
 
 def can_execute_tool(tool_name: str, auth_result: AuthResult) -> bool:
     """Check if user can execute a specific tool.
+
+    Mirrors the priority logic of filter_tools_for_user for individual execution
+    checks to ensure consistent enforcement at both listing and execution time.
 
     Args:
         tool_name: Name of the tool to execute
@@ -235,15 +268,27 @@ def can_execute_tool(tool_name: str, auth_result: AuthResult) -> bool:
     Returns:
         True if user can execute the tool
     """
-    # Legacy token or no user context = allow all
+    # Legacy token or no user context -> allow all (backward compatible)
     if auth_result.is_legacy_token or not auth_result.user:
         return True
 
-    # Superuser can do anything
-    if auth_result.user.is_superuser:
+    user = auth_result.user
+
+    # 1. Tool profile check (highest priority, even for superusers)
+    if user.tool_profile_id and hasattr(user, "tool_profile") and user.tool_profile:
+        profile = user.tool_profile
+        if profile.is_active:
+            # Full Access profile (max_tools=0 with no operations)
+            if profile.max_tools == 0 and not profile.operations:
+                return True
+            return tool_name in profile.get_operation_names()
+        # Inactive profile -> fall through to role-based check
+
+    # 2. Superuser without an active profile -> allow all
+    if user.is_superuser:
         return True
 
-    # Check if operation is in allowed list
+    # 3. Role-based check
     if auth_result.allowed_operations and tool_name in auth_result.allowed_operations:
         return True
 
@@ -346,11 +391,17 @@ async def mcp_sse_get(
 
     # Create message queue for this connection with user context
     message_queue: asyncio.Queue = asyncio.Queue()
+    assigned_clusters = (
+        [c.name for c in auth_result.user.clusters]
+        if auth_result.user and auth_result.user.clusters
+        else None
+    )
     _sse_connections[connection_id] = SSEConnection(
         queue=message_queue,
         user=auth_result.user,
         allowed_operations=auth_result.allowed_operations,
         has_edit_mode=auth_result.has_edit_mode,
+        assigned_clusters=assigned_clusters,
     )
 
     user_info = f" (user: {auth_result.user.username})" if auth_result.user else ""
@@ -469,6 +520,14 @@ async def mcp_sse_post(
                 })
             # Filter tools based on user permissions
             filtered_tools = filter_tools_for_user(tools, auth_result)
+            # Add nexus_list_clusters utility tool if user has multiple clusters
+            if auth_result.user and auth_result.user.clusters and len(auth_result.user.clusters) > 1:
+                cluster_names = [c.name for c in auth_result.user.clusters]
+                filtered_tools.append({
+                    "name": "nexus_list_clusters",
+                    "description": f"List your assigned Nexus Dashboard clusters. You have access to: {', '.join(cluster_names)}",
+                    "inputSchema": {"type": "object", "properties": {}},
+                })
             result = {"tools": filtered_tools}
 
         elif mcp_request.method == "tools/call":
@@ -479,6 +538,13 @@ async def mcp_sse_post(
 
             if not tool_name:
                 error = {"code": -32602, "message": "Missing tool name"}
+            elif tool_name == "nexus_list_clusters":
+                # Built-in utility: list clusters assigned to this user
+                clusters_info = []
+                if auth_result.user and auth_result.user.clusters:
+                    for c in auth_result.user.clusters:
+                        clusters_info.append({"name": c.name, "id": c.id})
+                result = {"content": [{"type": "text", "text": json.dumps({"clusters": clusters_info})}]}
             elif not can_execute_tool(tool_name, auth_result):
                 # Permission denied
                 user_info = f" for user '{auth_result.user.username}'" if auth_result.user else ""
@@ -498,8 +564,12 @@ async def mcp_sse_post(
                     error = {"code": -32600, "message": f"Cluster access denied{user_info}: {cluster_error}"}
                     logger.warning(f"Cluster access denied: {tool_name}{user_info} - {cluster_error}")
                 else:
-                    # Call the tool handler
-                    contents = await mcp.handle_call_tool(tool_name, tool_arguments)
+                    # Resolve target cluster from user's primary cluster assignment
+                    target_cluster = None
+                    if auth_result.user and auth_result.user.clusters:
+                        target_cluster = auth_result.user.clusters[0].name
+                    # Call the tool handler with cluster context
+                    contents = await mcp.handle_call_tool(tool_name, tool_arguments, cluster_name=target_cluster)
 
                     # Extract text from TextContent responses
                     result = {
@@ -605,6 +675,14 @@ async def mcp_message(
                 })
             # Filter tools based on user permissions
             filtered_tools = filter_tools_for_user(tools, auth_result)
+            # Add nexus_list_clusters utility tool if user has multiple clusters
+            if auth_result.user and auth_result.user.clusters and len(auth_result.user.clusters) > 1:
+                cluster_names = [c.name for c in auth_result.user.clusters]
+                filtered_tools.append({
+                    "name": "nexus_list_clusters",
+                    "description": f"List your assigned Nexus Dashboard clusters. You have access to: {', '.join(cluster_names)}",
+                    "inputSchema": {"type": "object", "properties": {}},
+                })
             result = {"tools": filtered_tools}
 
         elif mcp_request.method == "tools/call":
@@ -615,6 +693,13 @@ async def mcp_message(
 
             if not tool_name:
                 error = {"code": -32602, "message": "Missing tool name"}
+            elif tool_name == "nexus_list_clusters":
+                # Built-in utility: list clusters assigned to this user
+                clusters_info = []
+                if auth_result.user and auth_result.user.clusters:
+                    for c in auth_result.user.clusters:
+                        clusters_info.append({"name": c.name, "id": c.id})
+                result = {"content": [{"type": "text", "text": json.dumps({"clusters": clusters_info})}]}
             elif not can_execute_tool(tool_name, auth_result):
                 # Permission denied
                 user_info = f" for user '{auth_result.user.username}'" if auth_result.user else ""
@@ -634,8 +719,12 @@ async def mcp_message(
                     error = {"code": -32600, "message": f"Cluster access denied{user_info}: {cluster_error}"}
                     logger.warning(f"Cluster access denied: {tool_name}{user_info} - {cluster_error}")
                 else:
-                    # Call the tool handler
-                    contents = await mcp.handle_call_tool(tool_name, tool_arguments)
+                    # Resolve target cluster from user's primary cluster assignment
+                    target_cluster = None
+                    if auth_result.user and auth_result.user.clusters:
+                        target_cluster = auth_result.user.clusters[0].name
+                    # Call the tool handler with cluster context
+                    contents = await mcp.handle_call_tool(tool_name, tool_arguments, cluster_name=target_cluster)
 
                     # Extract text from TextContent responses
                     result = {

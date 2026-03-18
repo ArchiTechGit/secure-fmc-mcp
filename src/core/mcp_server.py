@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 # Use MCP SDK properly
 from mcp.server import Server
@@ -23,20 +23,24 @@ logger = logging.getLogger(__name__)
 class NexusDashboardMCP:
     """Nexus Dashboard MCP Server."""
 
-    def __init__(self, cluster_name: str = "default"):
+    def __init__(self, cluster_name: Optional[str] = None):
         """Initialize Nexus Dashboard MCP Server.
 
         Args:
-            cluster_name: Name of the Nexus Dashboard cluster to connect to
+            cluster_name: Optional name of the Nexus Dashboard cluster to bind to.
+                          When None, the cluster is resolved per-request from the
+                          authenticated user's cluster assignment.
         """
         self.cluster_name = cluster_name
         self.settings = get_settings()
 
         # Initialize components
         self.api_loader = APILoader()
-        self.auth_middleware = AuthMiddleware(cluster_name)
+        # Auth middleware is lazily created per cluster via get_auth_middleware()
+        self._auth_middleware_cache: Dict[str, AuthMiddleware] = {}
         self.security_middleware = SecurityMiddleware()
-        self.audit_logger = AuditLogger(cluster_name)
+        # Audit logger uses "default" when no cluster is bound at init time
+        self.audit_logger = AuditLogger(cluster_name or "default")
 
         # MCP server
         self.server = Server("nexus-dashboard-mcp")
@@ -48,6 +52,19 @@ class NexusDashboardMCP:
         # Guidance cache
         self._tool_overrides: Dict[str, Dict[str, Any]] = {}
         self._guidance_loaded = False
+
+    def get_auth_middleware(self, cluster_name: str) -> AuthMiddleware:
+        """Get or create AuthMiddleware for a specific cluster.
+
+        Args:
+            cluster_name: Name of the cluster to get middleware for.
+
+        Returns:
+            AuthMiddleware instance for the specified cluster.
+        """
+        if cluster_name not in self._auth_middleware_cache:
+            self._auth_middleware_cache[cluster_name] = AuthMiddleware(cluster_name)
+        return self._auth_middleware_cache[cluster_name]
 
     async def load_api(self, api_name: str) -> bool:
         """Load a specific Nexus Dashboard API.
@@ -180,18 +197,25 @@ class NexusDashboardMCP:
             # Use just operation_id, truncated if needed
             tool_name = operation_id[:64]
 
-        # Build description with parameter info
-        tool_description = f"{method} {path}"
-        if summary:
-            tool_description += f" - {summary}"
-
-        # Add enhanced description from guidance if available
+        # Build tool description
         if tool_name in self._tool_overrides:
             override = self._tool_overrides[tool_name]
             if override.get("enhanced_description"):
-                tool_description += f"\n\n{override['enhanced_description']}"
+                # Enhanced description replaces the default
+                tool_description = override["enhanced_description"]
+            else:
+                # Default format with better structure
+                tool_description = summary or f"{method} {path}"
+                tool_description += f"\nEndpoint: {method} {path}"
+            # Usage hint is always supplementary
             if override.get("usage_hint"):
-                tool_description += f"\n\n[Hint: {override['usage_hint']}]"
+                tool_description += f"\nHint: {override['usage_hint']}"
+        else:
+            # Default format with better structure
+            api_display = api_name.replace("_", " ").title()
+            tool_description = summary or f"{method} {path}"
+            tool_description += f"\nEndpoint: {method} {path}"
+            tool_description += f"\nAPI: {api_display}"
 
         # Extract path parameters from path (e.g., {fabricName}, {switchId})
         import re
@@ -246,12 +270,19 @@ class NexusDashboardMCP:
             inputSchema=input_schema
         )
 
-    async def handle_call_tool(self, name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+    async def handle_call_tool(
+        self,
+        name: str,
+        arguments: Dict[str, Any],
+        cluster_name: Optional[str] = None,
+    ) -> List[TextContent]:
         """Handle tool execution.
 
         Args:
             name: Tool name
             arguments: Tool arguments
+            cluster_name: Optional cluster to target. Defaults to self.cluster_name
+                          and then falls back to "default".
 
         Returns:
             List of TextContent responses
@@ -324,9 +355,13 @@ class NexusDashboardMCP:
             # Get API name from operation
             api_name = operation.get("api_name", "manage")
 
+            # Resolve target cluster: caller arg > instance binding > "default"
+            target_cluster = cluster_name or self.cluster_name or "default"
+            auth_mw = self.get_auth_middleware(target_cluster)
+
             # Execute API request
             try:
-                response = await self.auth_middleware.execute_request(
+                response = await auth_mw.execute_request(
                     method=method,
                     path=path,
                     api_name=api_name,
@@ -457,5 +492,10 @@ class NexusDashboardMCP:
 
     async def cleanup(self):
         """Cleanup resources."""
-        await self.auth_middleware.close()
+        for cluster, auth_mw in self._auth_middleware_cache.items():
+            try:
+                await auth_mw.close()
+            except Exception as e:
+                logger.warning(f"Error closing auth middleware for cluster '{cluster}': {e}")
+        self._auth_middleware_cache.clear()
         logger.info("Cleanup completed")

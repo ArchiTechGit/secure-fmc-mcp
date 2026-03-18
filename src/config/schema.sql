@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS users (
     auth_type VARCHAR(50) DEFAULT 'local',  -- 'local' or 'ldap'
     ldap_dn VARCHAR(500),                   -- Distinguished Name for LDAP users
     ldap_config_id INTEGER,                 -- References ldap_config(id) - added later
+    tool_profile_id INTEGER,                -- References tool_profiles(id) - added later
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP DEFAULT NOW() NOT NULL
@@ -118,6 +119,30 @@ CREATE TABLE IF NOT EXISTS user_clusters (
     cluster_id INTEGER NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW() NOT NULL,
     UNIQUE(user_id, cluster_id)
+);
+
+-- ==================== Tool Profile Tables ====================
+
+-- Tool profiles for controlling tool exposure to MCP clients
+-- Addresses MCP client tool limits (typically 40-128 tools) by filtering
+-- the 638+ available operations down to a manageable, role-appropriate subset.
+CREATE TABLE IF NOT EXISTS tool_profiles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    max_tools INTEGER DEFAULT 100,      -- 0 = no limit (Full Access)
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+-- Operations allowed within each tool profile
+CREATE TABLE IF NOT EXISTS tool_profile_operations (
+    id SERIAL PRIMARY KEY,
+    profile_id INTEGER NOT NULL REFERENCES tool_profiles(id) ON DELETE CASCADE,
+    operation_name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    UNIQUE(profile_id, operation_name)
 );
 
 -- ==================== LDAP Tables ====================
@@ -220,6 +245,13 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires
 CREATE INDEX IF NOT EXISTS idx_user_clusters_user_id ON user_clusters(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_clusters_cluster_id ON user_clusters(cluster_id);
 
+-- Tool profile indexes
+CREATE INDEX IF NOT EXISTS idx_tool_profiles_name ON tool_profiles(name);
+CREATE INDEX IF NOT EXISTS idx_tool_profiles_active ON tool_profiles(is_active);
+CREATE INDEX IF NOT EXISTS idx_tool_profile_operations_profile_id ON tool_profile_operations(profile_id);
+CREATE INDEX IF NOT EXISTS idx_tool_profile_operations_operation_name ON tool_profile_operations(operation_name);
+CREATE INDEX IF NOT EXISTS idx_users_tool_profile_id ON users(tool_profile_id);
+
 -- LDAP config indexes
 CREATE INDEX IF NOT EXISTS idx_ldap_config_enabled ON ldap_config(is_enabled);
 CREATE INDEX IF NOT EXISTS idx_ldap_config_primary ON ldap_config(is_primary);
@@ -248,6 +280,14 @@ VALUES
     ('Administrator', 'Full access to all features and operations', TRUE, TRUE),
     ('Operator', 'View and execute read-only operations', FALSE, TRUE),
     ('Viewer', 'Read-only access to view data', FALSE, TRUE)
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert default tool profiles (max_tools=0 means no filtering for Full Access)
+INSERT INTO tool_profiles (name, description, max_tools) VALUES
+    ('Fabric Operations', 'Common fabric management operations for VLAN, VRF, BD, and EPG', 30),
+    ('Monitoring & Health', 'Read-only monitoring and health check operations', 25),
+    ('Troubleshooting', 'Network analysis and troubleshooting tools', 25),
+    ('Full Access', 'All available operations (no filtering)', 0)
 ON CONFLICT (name) DO NOTHING;
 
 -- ==================== Comments ====================
@@ -383,3 +423,74 @@ COMMENT ON TABLE workflows IS 'Multi-step workflow definitions';
 COMMENT ON TABLE workflow_steps IS 'Individual steps within workflows';
 COMMENT ON TABLE tool_description_overrides IS 'Enhanced tool descriptions';
 COMMENT ON TABLE system_prompt_sections IS 'System prompt configuration sections';
+
+-- ==================== Workflow Extension Columns (Migration 007) ====================
+
+ALTER TABLE workflow_steps ADD COLUMN IF NOT EXISTS input_mapping JSONB DEFAULT '{}';
+ALTER TABLE workflow_steps ADD COLUMN IF NOT EXISTS output_key VARCHAR(255);
+ALTER TABLE workflow_steps ADD COLUMN IF NOT EXISTS condition_type VARCHAR(50) DEFAULT 'always';
+ALTER TABLE workflow_steps ADD COLUMN IF NOT EXISTS condition JSONB DEFAULT '{}';
+
+-- ==================== Workflow Execution Tracking (Migration 007) ====================
+
+CREATE TABLE IF NOT EXISTS workflow_executions (
+    id SERIAL PRIMARY KEY,
+    workflow_id INTEGER NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'running',
+    context JSONB DEFAULT '{}',
+    error_message TEXT,
+    started_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS workflow_step_executions (
+    id SERIAL PRIMARY KEY,
+    execution_id INTEGER NOT NULL REFERENCES workflow_executions(id) ON DELETE CASCADE,
+    step_order INTEGER NOT NULL,
+    operation_name VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    input_data JSONB DEFAULT '{}',
+    output_data JSONB DEFAULT '{}',
+    error_message TEXT,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+-- ==================== Use Case System (Migration 007) ====================
+
+CREATE TABLE IF NOT EXISTS use_cases (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    display_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS use_case_workflows (
+    id SERIAL PRIMARY KEY,
+    use_case_id INTEGER NOT NULL REFERENCES use_cases(id) ON DELETE CASCADE,
+    workflow_id INTEGER NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    UNIQUE(use_case_id, workflow_id)
+);
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_workflow_executions_workflow_id ON workflow_executions(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_executions_user_id ON workflow_executions(user_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_executions_status ON workflow_executions(status);
+CREATE INDEX IF NOT EXISTS idx_workflow_step_executions_execution_id ON workflow_step_executions(execution_id);
+CREATE INDEX IF NOT EXISTS idx_use_cases_name ON use_cases(name);
+CREATE INDEX IF NOT EXISTS idx_use_cases_category ON use_cases(category);
+CREATE INDEX IF NOT EXISTS idx_use_case_workflows_use_case_id ON use_case_workflows(use_case_id);
+CREATE INDEX IF NOT EXISTS idx_use_case_workflows_workflow_id ON use_case_workflows(workflow_id);
+
+COMMENT ON TABLE workflow_executions IS 'Tracks individual workflow execution runs with status and context';
+COMMENT ON TABLE workflow_step_executions IS 'Tracks per-step execution results within a workflow run';
+COMMENT ON TABLE use_cases IS 'First-class use case entities grouping related workflows';
+COMMENT ON TABLE use_case_workflows IS 'Many-to-many association between use cases and workflows';
