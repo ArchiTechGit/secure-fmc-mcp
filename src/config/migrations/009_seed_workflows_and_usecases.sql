@@ -274,63 +274,63 @@ AND NOT EXISTS (
 -- USE CASES
 -- ============================================================================
 
-INSERT INTO use_cases (name, display_name, description, category, is_active)
+INSERT INTO use_cases (name, display_name, description, category, is_active, created_at, updated_at)
 VALUES
     (
         'connectivity_troubleshooting',
         'Connectivity Troubleshooting',
         'Diagnose and resolve endpoint connectivity issues including unreachable hosts, broken paths, and flow problems.',
         'troubleshooting',
-        TRUE
+        TRUE, NOW(), NOW()
     ),
     (
         'ip_address_conflict',
         'IP Address Conflict',
         'Detect and resolve duplicate IP address situations where multiple endpoints share the same IP, causing intermittent connectivity.',
         'troubleshooting',
-        TRUE
+        TRUE, NOW(), NOW()
     ),
     (
         'proactive_monitoring',
         'Proactive Monitoring',
         'Regular health checks across fabric and nodes to catch issues before they impact production traffic.',
         'monitoring',
-        TRUE
+        TRUE, NOW(), NOW()
     ),
     (
         'interface_problems',
         'Interface Problems',
         'Troubleshoot interface-level issues including link failures, error counters, flapping, and congestion.',
         'troubleshooting',
-        TRUE
+        TRUE, NOW(), NOW()
     ),
     (
         'routing_issues',
         'Routing Issues',
         'Investigate routing protocol problems including BGP neighbor failures, missing routes, and route instability.',
         'troubleshooting',
-        TRUE
+        TRUE, NOW(), NOW()
     ),
     (
         'compliance_and_drift',
         'Compliance & Drift',
         'Verify that fabric configuration matches the intended state and detect any configuration drift.',
         'compliance',
-        TRUE
+        TRUE, NOW(), NOW()
     ),
     (
         'alert_management',
         'Alert Management',
         'Triage, prioritize, and resolve advisories and alerts across the fabric.',
         'operations',
-        TRUE
+        TRUE, NOW(), NOW()
     ),
     (
         'multicast_issues',
         'Multicast Issues',
         'Diagnose multicast delivery failures including IGMP membership, PIM adjacency, and source/receiver path issues.',
         'troubleshooting',
-        TRUE
+        TRUE, NOW(), NOW()
     )
 ON CONFLICT (name) DO NOTHING;
 
@@ -338,8 +338,8 @@ ON CONFLICT (name) DO NOTHING;
 -- USE CASE <-> WORKFLOW LINKS
 -- ============================================================================
 
-INSERT INTO use_case_workflows (use_case_id, workflow_id)
-SELECT uc.id, w.id
+INSERT INTO use_case_workflows (use_case_id, workflow_id, created_at)
+SELECT uc.id, w.id, NOW()
 FROM use_cases uc, workflows w
 WHERE (uc.name, w.name) IN (
     ('connectivity_troubleshooting', 'endpoint_unreachable'),
