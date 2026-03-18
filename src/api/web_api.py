@@ -856,15 +856,29 @@ async def update_cluster(name: str, cluster_data: ClusterUpdate):
     if not existing_cluster:
         raise HTTPException(status_code=404, detail=f"Cluster '{name}' not found")
 
-    # Get decrypted credentials
-    credentials = await credential_manager.get_credentials(name)
+    # Try to get decrypted credentials (may fail if encryption key changed)
+    existing_password = None
+    try:
+        credentials = await credential_manager.get_credentials(name)
+        if credentials:
+            existing_password = credentials["password"]
+    except Exception:
+        logger.warning(f"Could not decrypt existing password for cluster '{name}' (encryption key may have changed)")
+
+    # Use new password if provided, otherwise fall back to existing
+    password = cluster_data.password or existing_password
+    if not password:
+        raise HTTPException(
+            status_code=400,
+            detail="Password is required (existing password could not be decrypted, likely due to encryption key change)"
+        )
 
     # Update with new values or keep existing
     updated_cluster = await credential_manager.store_credentials(
         name=name,
         url=cluster_data.url or existing_cluster.url,
         username=cluster_data.username or existing_cluster.username,
-        password=cluster_data.password or credentials["password"],
+        password=password,
         verify_ssl=cluster_data.verify_ssl if cluster_data.verify_ssl is not None else existing_cluster.verify_ssl,
     )
 
