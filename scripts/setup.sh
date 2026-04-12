@@ -81,6 +81,11 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
+# Validate external Docker network required by docker-compose.yml
+echo ""
+echo "Checking external Docker network..."
+bash scripts/preflight-network.sh
+
 # Build and start services
 echo ""
 echo "Building Docker images..."
@@ -112,8 +117,8 @@ echo ""
 echo "Useful commands:"
 echo "  - Stop services: docker-compose stop"
 echo "  - Start services: docker-compose start"
-echo "  - View logs: docker-compose logs -f mcp-server"
-echo "  - Restart: docker-compose restart mcp-server"
+echo "  - View logs: docker-compose logs -f nd_mcp_mcp_server"
+echo "  - Restart: docker-compose restart nd_mcp_mcp_server"
 echo ""
 echo "Documentation: ./docs/"
 echo ""

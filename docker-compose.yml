@@ -1,8 +1,8 @@
 services:
   # PostgreSQL database for credentials and audit logs
-  postgres:
+  nd_mcp_postgres:
     image: postgres:15-alpine
-    container_name: nexus-mcp-postgres
+    container_name: nd_mcp_postgres
     environment:
       POSTGRES_DB: nexus_mcp
       POSTGRES_USER: mcp_user
@@ -22,9 +22,9 @@ services:
     restart: unless-stopped
 
   # Certificate initialization service (generates self-signed certs on first startup)
-  cert-init:
+  nd_mcp_cert_init:
     image: alpine:latest
-    container_name: nexus-mcp-cert-init
+    container_name: nd_mcp_cert_init
     command: sh /scripts/generate-certs.sh
     volumes:
       - certs:/app/certs
@@ -39,19 +39,20 @@ services:
       - nexus-mcp-network
 
   # Nexus Dashboard MCP Server
-  # Uses host networking to access external networks (e.g., Nexus Dashboard)
-  mcp-server:
+  # Connected to external bridge network for container-to-container communication
+  nd_mcp_mcp_server:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nexus-mcp-server
+    container_name: nd_mcp_mcp_server
     depends_on:
-      postgres:
+      nd_mcp_postgres:
         condition: service_healthy
-    network_mode: host
+    networks:
+      - nexus-mcp-network
     environment:
-      # Database (use localhost since we're on host network)
-      DATABASE_URL: postgresql://mcp_user:changeme@localhost:15432/nexus_mcp
+      # Database (use service name on Docker network)
+      DATABASE_URL: postgresql://mcp_user:changeme@nd_mcp_postgres:5432/nexus_mcp
 
       # Nexus Dashboard Connection
       NEXUS_CLUSTER_URL: ${NEXUS_CLUSTER_URL:-https://192.168.70.101}
@@ -83,21 +84,24 @@ services:
       "
 
   # FastAPI Web API Backend (HTTPS)
-  # Uses host networking to access external networks (e.g., Nexus Dashboard)
-  web-api:
+  # Connected to external bridge network for service discovery via DNS
+  nd_mcp_web_api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nexus-mcp-web-api
+    container_name: nd_mcp_web_api
     depends_on:
-      postgres:
+      nd_mcp_postgres:
         condition: service_healthy
-      cert-init:
+      nd_mcp_cert_init:
         condition: service_completed_successfully
-    network_mode: host
+    networks:
+      - nexus-mcp-network
+    ports:
+      - "${WEB_API_PORT:-8444}:${WEB_API_PORT:-8444}"
     environment:
-      # Database (use localhost since we're on host network)
-      DATABASE_URL: postgresql://mcp_user:changeme@localhost:15432/nexus_mcp
+      # Database (use service name on Docker network)
+      DATABASE_URL: postgresql://mcp_user:changeme@nd_mcp_postgres:5432/nexus_mcp
 
       # Security
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-lGczu6Yzd2IrRrcJF3cOS8BsAOO6R-1761BRDusbCuM=}
@@ -129,18 +133,21 @@ services:
       start_period: 30s
 
   # Next.js Web UI (HTTPS)
-  web-ui:
+  nd_mcp_web_ui:
     build:
       context: ./web-ui
       dockerfile: Dockerfile
-    container_name: nexus-mcp-web-ui
+    container_name: nd_mcp_web_ui
     depends_on:
-      - web-api
-      - cert-init
-    network_mode: host
+      - nd_mcp_web_api
+      - nd_mcp_cert_init
+    networks:
+      - nexus-mcp-network
+    ports:
+      - "${WEB_UI_PORT:-7443}:${WEB_UI_PORT:-7443}"
     environment:
-      # Backend API URL for server-side proxying (web-api is on host network, port 8001)
-      - BACKEND_API_URL=http://localhost:8001
+      # Backend API URL for server-side proxying over Docker network
+      - BACKEND_API_URL=http://nd_mcp_web_api:8001
       # SSL/TLS Configuration
       - SSL_ENABLED=true
       - SSL_CERTFILE=/app/certs/server.crt
@@ -157,7 +164,8 @@ services:
 
 networks:
   nexus-mcp-network:
-    driver: bridge
+    external: true
+    name: ${DOCKER_EXTERNAL_NETWORK:-openshell-cluster-nemoclaw}
 
 volumes:
   postgres_data:

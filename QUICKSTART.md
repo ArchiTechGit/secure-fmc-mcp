@@ -25,9 +25,22 @@ echo "CERT_SERVER_IP=YOUR_SERVER_IP" > .env
 
 Replace `YOUR_SERVER_IP` with your server's IP address (e.g., `192.168.1.213`).
 
+If you need to use an existing Docker bridge network, add this to `.env`:
+
+```bash
+echo "DOCKER_EXTERNAL_NETWORK=openshell-cluster-nemoclaw" >> .env
+```
+
+Make sure that network already exists:
+
+```bash
+docker network create --driver bridge openshell-cluster-nemoclaw
+```
+
 ### Step 2: Start Services
 
 ```bash
+bash scripts/preflight-network.sh
 docker compose up -d --build
 ```
 
@@ -120,8 +133,8 @@ docker compose up -d --build
 docker compose ps
 
 # Check for errors
-docker compose logs web-ui
-docker compose logs web-api
+docker compose logs nd_mcp_web_ui
+docker compose logs nd_mcp_web_api
 ```
 
 ### Certificate issues
@@ -134,7 +147,7 @@ docker compose up -d
 ### Database issues
 ```bash
 # Connect to database
-docker compose exec postgres psql -U mcp_user -d nexus_mcp
+docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp
 
 # Check tables
 \dt

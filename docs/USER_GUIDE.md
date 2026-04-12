@@ -540,8 +540,8 @@ docker-compose ps
 **Check logs**:
 ```bash
 docker-compose logs postgres
-docker-compose logs web-api
-docker-compose logs web-ui
+docker-compose logs nd_mcp_web_api
+docker-compose logs nd_mcp_web_ui
 ```
 
 **Common Issues**:
@@ -558,13 +558,13 @@ docker-compose ps
 
 **Check web-ui logs**:
 ```bash
-docker-compose logs web-ui
+docker-compose logs nd_mcp_web_ui
 ```
 
 **Try rebuilding**:
 ```bash
-docker-compose build web-ui
-docker-compose up -d web-ui
+docker-compose build nd_mcp_web_ui
+docker-compose up -d nd_mcp_web_ui
 ```
 
 ### Cluster Connection Failed
@@ -602,7 +602,7 @@ curl -k -u admin:password https://nexus-dashboard.example.com/apidocs/
    - Make a test query through Claude
    - Check if MCP server is running:
      ```bash
-     docker-compose ps mcp-server
+     docker-compose ps nd_mcp_mcp_server
      ```
 
 ### Audit Logs Missing Client IP

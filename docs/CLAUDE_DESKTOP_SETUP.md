@@ -62,7 +62,7 @@ For Claude Desktop running on the same machine as Docker:
       "args": [
         "exec",
         "-i",
-        "nexus-mcp-server",
+        "nd_mcp_mcp_server",
         "python",
         "src/main.py"
       ]
@@ -199,7 +199,7 @@ docker compose up -d
 
 2. **Check server logs:**
    ```bash
-   docker compose logs -f mcp-server
+   docker compose logs -f nd_mcp_mcp_server
    ```
 
 3. **Verify Claude Desktop config syntax:**
@@ -246,7 +246,7 @@ If you see "self-signed certificate" or "unable to verify" errors:
 ### View Real-Time Logs
 
 ```bash
-docker compose logs -f mcp-server
+docker compose logs -f nd_mcp_mcp_server
 ```
 
 ### Audit Log Access
@@ -255,7 +255,7 @@ All MCP operations are logged. View them at:
 - Web UI: `https://YOUR_SERVER_IP:7443/audit`
 - Database:
   ```bash
-  docker compose exec postgres psql -U mcp_user -d nexus_mcp -c \
+  docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp -c \
     "SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT 20;"
   ```
 

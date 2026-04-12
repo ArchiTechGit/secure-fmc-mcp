@@ -36,7 +36,7 @@ A comprehensive Model Context Protocol (MCP) server for Cisco Nexus Dashboard, e
 
 - **Enterprise Ready**:
   - PostgreSQL database for persistence
-  - Docker-based deployment with host networking
+  - Docker-based deployment on an external bridge network
   - Complete audit trail for compliance
   - LDAP integration support
 
@@ -63,6 +63,7 @@ Replace `YOUR_SERVER_IP` with your server's actual IP address (e.g., `192.168.1.
 ### 2. Start Services
 
 ```bash
+bash scripts/preflight-network.sh
 docker compose up -d --build
 ```
 
@@ -134,7 +135,7 @@ Replace `YOUR_SERVER_IP` with your server's IP address.
       "args": [
         "exec",
         "-i",
-        "nexus-mcp-server",
+        "nd_mcp_mcp_server",
         "python",
         "src/main.py"
       ]
@@ -197,6 +198,9 @@ CERT_SERVER_IP=192.168.1.213
 # Security (generate unique keys for production)
 ENCRYPTION_KEY=your-unique-fernet-key
 SESSION_SECRET_KEY=your-random-secret-key
+
+# External Docker network (must already exist)
+DOCKER_EXTERNAL_NETWORK=openshell-cluster-nemoclaw
 
 # Optional: Nexus Dashboard defaults (can be configured via Web UI)
 NEXUS_CLUSTER_URL=https://nexus-dashboard.example.com
@@ -279,7 +283,7 @@ docker compose logs -f
 ### Certificate Issues
 ```bash
 # View certificate details
-docker compose exec web-api openssl x509 -in /app/certs/server.crt -text -noout
+docker compose exec nd_mcp_web_api openssl x509 -in /app/certs/server.crt -text -noout
 
 # Regenerate certificates
 docker volume rm nexus-mcp-certs
@@ -289,7 +293,7 @@ docker compose up -d
 ### Database Issues
 ```bash
 # Connect to database
-docker compose exec postgres psql -U mcp_user -d nexus_mcp
+docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp
 
 # Check tables
 \dt

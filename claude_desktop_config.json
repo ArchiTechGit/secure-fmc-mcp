@@ -5,7 +5,7 @@
       "args": [
         "exec",
         "-i",
-        "nexus-mcp-server",
+        "nd_mcp_mcp_server",
         "python",
         "src/main.py"
       ]

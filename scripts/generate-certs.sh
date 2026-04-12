@@ -42,7 +42,7 @@ if [ -f "$CERT_DIR/server.crt" ] && [ -f "$CERT_DIR/server.key" ]; then
 fi
 
 # Build Subject Alternative Names (SANs) dynamically
-SAN_LIST="DNS:localhost,DNS:web-api,DNS:web-ui,IP:127.0.0.1"
+SAN_LIST="DNS:localhost,DNS:nd_mcp_web_api,DNS:nd_mcp_web_ui,IP:127.0.0.1"
 
 if [ -n "$CERT_SERVER_IP" ]; then
     SAN_LIST="${SAN_LIST},IP:${CERT_SERVER_IP}"

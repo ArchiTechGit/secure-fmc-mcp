@@ -166,7 +166,7 @@ SELECT name, password_encrypted FROM clusters;
 **You can verify:**
 ```bash
 # Check the database
-docker exec -it nexus-mcp-postgres psql -U mcp_user -d nexus_mcp
+docker exec -it nd_mcp_postgres psql -U mcp_user -d nexus_mcp
 SELECT name, LEFT(password_encrypted, 20) as encrypted_preview FROM clusters;
 
 # You'll see encrypted gibberish, not plain passwords ✓
@@ -264,7 +264,7 @@ EDIT_MODE_ENABLED=true
 
 Then restart MCP server:
 ```bash
-docker-compose restart mcp-server
+docker-compose restart nd_mcp_mcp_server
 ```
 
 ---
@@ -292,7 +292,7 @@ docker-compose restart mcp-server
 **Step 2: Restart MCP server to pick up new credentials**
 
 ```bash
-docker-compose restart mcp-server
+docker-compose restart nd_mcp_mcp_server
 ```
 
 **Step 3: Use Claude Desktop**
@@ -330,7 +330,7 @@ You get response: "Here are the fabrics: ..."
    EDIT_MODE_ENABLED=true
 
 2. Restart MCP server:
-   docker-compose restart mcp-server
+   docker-compose restart nd_mcp_mcp_server
 
 3. Now in Claude:
    You: "Create a VLAN with ID 100"

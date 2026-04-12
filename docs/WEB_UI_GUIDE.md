@@ -309,6 +309,6 @@ All components use Tailwind CSS. Modify `web-ui/src/app/globals.css` for global 
 ## Support
 
 For issues or questions:
-- Check the logs: `docker-compose logs web-ui`
+- Check the logs: `docker-compose logs nd_mcp_web_ui`
 - Review API documentation: `/docs/API_REFERENCE.md`
 - Check backend health: `http://localhost:8000/health`

@@ -92,13 +92,14 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 ### Step 3: Start Services
 
 ```bash
+bash scripts/preflight-network.sh
 docker compose up -d --build
 ```
 
 This command will:
 1. Generate self-signed SSL certificates (first startup only)
 2. Initialize PostgreSQL database with schema
-3. Start all services with host networking
+3. Start all services attached to the configured external Docker bridge network
 
 ### Step 4: Verify Deployment
 
@@ -133,7 +134,19 @@ curl -k https://localhost:8444/api/health
 | Internal HTTP | 8001 | HTTP | Web UI to API proxy | `INTERNAL_HTTP_PORT` |
 | PostgreSQL | 15432 | TCP | Database | via docker-compose |
 
-> **Note:** Services use Docker host networking mode to enable access to external networks (Nexus Dashboard clusters).
+> **Note:** Services attach to an existing external Docker bridge network (default: `openshell-cluster-nemoclaw`).
+
+Ensure the network exists before startup:
+
+```bash
+docker network create --driver bridge openshell-cluster-nemoclaw
+```
+
+Or set a different existing network name in your `.env` file:
+
+```env
+DOCKER_EXTERNAL_NETWORK=your-existing-bridge-network
+```
 
 ### Port Configuration
 
@@ -270,7 +283,7 @@ For Claude Desktop running on the same machine:
       "args": [
         "exec",
         "-i",
-        "nexus-mcp-server",
+        "nd_mcp_mcp_server",
         "python",
         "src/main.py"
       ]
@@ -296,7 +309,7 @@ For Claude Desktop running on the same machine:
 docker compose ps
 
 # View detailed health status
-docker inspect nexus-mcp-web-api --format='{{.State.Health.Status}}'
+docker inspect nd_mcp_web_api --format='{{.State.Health.Status}}'
 ```
 
 ### API Health Endpoint
@@ -328,7 +341,7 @@ Access `https://YOUR_SERVER_IP:7443/health` for a visual health dashboard.
 ### Connect to Database
 
 ```bash
-docker compose exec postgres psql -U mcp_user -d nexus_mcp
+docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp
 ```
 
 ### Common Queries
@@ -354,7 +367,7 @@ SELECT id, username, email, is_active FROM users;
 
 ```bash
 # Create backup
-docker compose exec postgres pg_dump -U mcp_user nexus_mcp > backup-$(date +%Y%m%d).sql
+docker compose exec nd_mcp_postgres pg_dump -U mcp_user nexus_mcp > backup-$(date +%Y%m%d).sql
 
 # Restore from backup
 docker compose exec -T postgres psql -U mcp_user nexus_mcp < backup-20250101.sql
@@ -366,8 +379,8 @@ docker compose exec -T postgres psql -U mcp_user nexus_mcp < backup-20250101.sql
 
 ```bash
 # Check logs for errors
-docker compose logs web-api
-docker compose logs web-ui
+docker compose logs nd_mcp_web_api
+docker compose logs nd_mcp_web_ui
 
 # Verify port availability
 netstat -tlnp | grep -E '7443|8444|15432'
@@ -377,17 +390,17 @@ netstat -tlnp | grep -E '7443|8444|15432'
 
 ```bash
 # View certificate details
-docker compose exec web-api openssl x509 -in /app/certs/server.crt -text -noout
+docker compose exec nd_mcp_web_api openssl x509 -in /app/certs/server.crt -text -noout
 
 # Check certificate expiration
-docker compose exec web-api openssl x509 -in /app/certs/server.crt -noout -dates
+docker compose exec nd_mcp_web_api openssl x509 -in /app/certs/server.crt -noout -dates
 ```
 
 ### Database Connection Issues
 
 ```bash
 # Test database connectivity
-docker compose exec postgres pg_isready -U mcp_user
+docker compose exec nd_mcp_postgres pg_isready -U mcp_user
 
 # Check database logs
 docker compose logs postgres

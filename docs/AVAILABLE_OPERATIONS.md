@@ -209,7 +209,7 @@ All operations are exposed as MCP tools with the naming format:
 To see all 202 operations with full details, use:
 
 ```bash
-docker exec -i nexus-mcp-server python -c "
+docker exec -i nd_mcp_mcp_server python -c "
 import sys
 sys.path.insert(0, '/app')
 from src.core.api_loader import APILoader
