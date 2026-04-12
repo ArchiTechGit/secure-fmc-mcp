@@ -183,7 +183,7 @@ Certificate Volume: /app/certs/ (auto-generated on first startup)
 | Web UI | 7443 | HTTPS | Management interface |
 | Web API | 8444 | HTTPS | REST API and MCP SSE endpoint |
 | PostgreSQL | 15432 | TCP | Database (mapped from 5432) |
-| Internal HTTP | 8001 | HTTP | Internal proxy communication |
+| Internal HTTP | 7100 | HTTP | Internal proxy communication |
 
 ## Environment Variables
 
@@ -201,6 +201,10 @@ SESSION_SECRET_KEY=your-random-secret-key
 
 # External Docker network (must already exist)
 DOCKER_EXTERNAL_NETWORK=openshell-cluster-nemoclaw
+
+# Required by Web UI runtime proxy target
+# Docker Compose sets this to http://nd_mcp_web_api:7100 by default
+BACKEND_API_URL=http://nd_mcp_web_api:7100
 
 # Optional: Nexus Dashboard defaults (can be configured via Web UI)
 NEXUS_CLUSTER_URL=https://nexus-dashboard.example.com

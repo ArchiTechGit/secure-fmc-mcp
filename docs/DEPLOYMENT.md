@@ -213,6 +213,7 @@ To use your own certificates:
 | `CERT_CN` | `nexus-dashboard` | Certificate common name |
 | `ENCRYPTION_KEY` | (auto) | Fernet key for credential encryption |
 | `SESSION_SECRET_KEY` | (auto) | Session signing key |
+| `BACKEND_API_URL` | (required) | Web UI runtime target for proxied API requests |
 
 ### Port Configuration
 
@@ -221,7 +222,7 @@ To use your own certificates:
 | `WEB_UI_PORT` | `7443` | External HTTPS port for Web UI |
 | `WEB_UI_INTERNAL_PORT` | `7100` | Internal Next.js port (localhost only) |
 | `WEB_API_PORT` | `8444` | External HTTPS port for Web API |
-| `INTERNAL_HTTP_PORT` | `8001` | Internal HTTP port for API proxy |
+| `INTERNAL_HTTP_PORT` | `7100` | Internal HTTP port for API proxy |
 
 ### Security
 

@@ -27,6 +27,12 @@ const sslEnabled = process.env.SSL_ENABLED === 'true';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
 const externalPort = parseInt(process.env.PORT || '7443', 10);
 const internalPort = parseInt(process.env.INTERNAL_PORT || '7100', 10);
+const backendApiUrl = process.env.BACKEND_API_URL?.replace(/\/$/, '');
+
+if (!backendApiUrl) {
+  console.error('Missing required environment variable: BACKEND_API_URL');
+  process.exit(1);
+}
 
 // Create proxy to forward requests to Next.js
 const proxy = httpProxy.createProxyServer({
@@ -35,8 +41,25 @@ const proxy = httpProxy.createProxyServer({
   xfwd: true,
 });
 
+// Runtime API proxy target so BACKEND_API_URL can be changed without rebuilding.
+const apiProxy = httpProxy.createProxyServer({
+  target: backendApiUrl,
+  ws: false,
+  xfwd: true,
+  changeOrigin: true,
+  secure: false,
+});
+
 proxy.on('error', (err, req, res) => {
   console.error('Proxy error:', err.message);
+  if (res.writeHead) {
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    res.end('Bad Gateway');
+  }
+});
+
+apiProxy.on('error', (err, req, res) => {
+  console.error('API proxy error:', err.message);
   if (res.writeHead) {
     res.writeHead(502, { 'Content-Type': 'text/plain' });
     res.end('Bad Gateway');
@@ -101,6 +124,11 @@ const startProxy = () => {
   let server;
 
   const requestHandler = (req, res) => {
+    if (req.url && req.url.startsWith('/api/')) {
+      apiProxy.web(req, res);
+      return;
+    }
+
     proxy.web(req, res);
   };
 
@@ -132,6 +160,7 @@ const startProxy = () => {
     server.listen(externalPort, hostname, () => {
       console.log(`> HTTPS proxy ready on https://${hostname}:${externalPort}`);
       console.log(`  Proxying to http://127.0.0.1:${internalPort}`);
+      console.log(`  API Proxy target: ${backendApiUrl}`);
       console.log(`  SSL Certificate: ${certFile}`);
     });
   } else {
@@ -144,6 +173,7 @@ const startProxy = () => {
     server.listen(externalPort, hostname, () => {
       console.log(`> HTTP proxy ready on http://${hostname}:${externalPort}`);
       console.log(`  Proxying to http://127.0.0.1:${internalPort}`);
+      console.log(`  API Proxy target: ${backendApiUrl}`);
     });
   }
 };

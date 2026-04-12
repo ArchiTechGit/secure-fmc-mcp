@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_API_URL || 'http://nd_mcp_web_api:8000';
+const BACKEND_URL = process.env.BACKEND_API_URL;
 
 export async function GET(request: NextRequest) {
+  if (!BACKEND_URL) {
+    return NextResponse.json(
+      { detail: 'Server misconfiguration: BACKEND_API_URL is not set' },
+      { status: 500 }
+    );
+  }
+
   try {
     // Get the session cookie to forward
     const sessionCookie = request.cookies.get('nexus_session');
