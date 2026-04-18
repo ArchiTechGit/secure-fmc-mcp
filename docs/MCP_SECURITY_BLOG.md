@@ -467,7 +467,7 @@ The organizations building secure MCP implementations now will be better positio
 
 ## Resources
 
-- [Cisco FMC MCP Server](https://github.com/YOUR_ORG/secure-fmc-mcp) - Full implementation
+- [Cisco FMC MCP Server](https://github.com/ArchiTechGit/secure-fmc-mcp) - Full implementation
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/) - Official MCP docs
 - [OWASP API Security Top 10](https://owasp.org/www-project-api-security/) - API security reference
 - [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework) - Security controls reference

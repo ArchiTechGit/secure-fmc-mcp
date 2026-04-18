@@ -16,8 +16,8 @@ A complete Cisco FMC management system with:
 ### Step 1: Clone and Configure
 
 ```bash
-git clone https://github.com/your-org/fmc-mcp.git
-cd fmc-mcp
+git clone https://github.com/ArchiTechGit/secure-fmc-mcp.git
+cd secure-fmc-mcp
 
 # Configure your server's IP address
 echo "CERT_SERVER_IP=YOUR_SERVER_IP" > .env

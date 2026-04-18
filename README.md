@@ -51,8 +51,8 @@ A comprehensive Model Context Protocol (MCP) server for Cisco Secure Firewall Ma
 ### 1. Clone and Configure
 
 ```bash
-git clone https://github.com/your-org/fmc-mcp.git
-cd fmc-mcp
+git clone https://github.com/ArchiTechGit/secure-fmc-mcp.git
+cd secure-fmc-mcp
 
 # Create environment file with your server's IP address
 echo "CERT_SERVER_IP=YOUR_SERVER_IP" > .env
@@ -318,8 +318,8 @@ curl -k https://localhost:7443
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/fmc-mcp.git
-cd fmc-mcp
+git clone https://github.com/ArchiTechGit/secure-fmc-mcp.git
+cd secure-fmc-mcp
 
 # Create virtual environment
 python -m venv venv

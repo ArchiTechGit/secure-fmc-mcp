@@ -53,7 +53,7 @@
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_ORG/secure-fmc-mcp.git
+git clone https://github.com/ArchiTechGit/secure-fmc-mcp.git
 cd secure-fmc-mcp
 ```
 

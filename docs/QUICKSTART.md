@@ -13,7 +13,7 @@ docker compose version
 ### 2. Clone and Configure
 
 ```bash
-git clone https://github.com/YOUR_ORG/secure-fmc-mcp.git
+git clone https://github.com/ArchiTechGit/secure-fmc-mcp.git
 cd secure-fmc-mcp
 
 # Configure your server's IP address (required for SSL certificate)
@@ -231,7 +231,7 @@ docker image prune -f
 
 ## Getting Help
 
-- Issues: https://github.com/YOUR_ORG/secure-fmc-mcp/issues
+- Issues: https://github.com/ArchiTechGit/secure-fmc-mcp/issues
 - Documentation: `docs/` directory
 - Troubleshooting: `docs/DEPLOYMENT.md#troubleshooting`
 
