@@ -8,6 +8,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 SPECS = [
     ("fmc", "fmc_oas3.json", "Cisco FMC API"),
@@ -24,7 +25,7 @@ def escape_sql(s: str) -> str:
     return s.replace("\\", "\\\\").replace("'", "''").replace("\n", "\\n")
 
 
-def build_description(operation: dict, method: str, path: str) -> str | None:
+def build_description(operation: dict, method: str, path: str) -> Optional[str]:
     """Build a concise LLM-friendly description from an OpenAPI operation."""
     desc = operation.get("description", "")
     summary = operation.get("summary", "")
