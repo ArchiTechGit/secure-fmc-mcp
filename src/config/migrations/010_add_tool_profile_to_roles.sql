@@ -41,25 +41,25 @@ VALUES
     (
         'Read-Only Analyst',
         'All FMC GET operations — read-only access across objects, policies, devices, and deployment',
-        400,
+        668,
         TRUE, NOW(), NOW()
     ),
     (
         'Network Operator',
         'Full read-write access to all FMC operations',
-        0,
+        1331,
         TRUE, NOW(), NOW()
     ),
     (
         'Policy Administrator',
         'Read-write access to FMC policy and object operations',
-        200,
+        836,
         TRUE, NOW(), NOW()
     ),
     (
         'Troubleshooting Only',
         'Packet capture, packet tracer, health monitoring, and deployment status checks',
-        50,
+        16,
         TRUE, NOW(), NOW()
     )
 ON CONFLICT (name) DO NOTHING;
