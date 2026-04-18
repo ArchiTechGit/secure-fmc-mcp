@@ -69,16 +69,16 @@ docker compose up -d --build
 
 This will:
 - Generate self-signed SSL certificates automatically
-- Start PostgreSQL database (port 15432)
-- Start Web API with HTTPS (port 8444)
-- Start Web UI with HTTPS (port 7443)
+- Start PostgreSQL database (port 15434)
+- Start Web API with HTTPS (port 8446)
+- Start Web UI with HTTPS (port 7445)
 - Start MCP Server for Claude integration
 
 ### 3. Initial Setup
 
 1. Open your browser and navigate to:
    ```
-   https://YOUR_SERVER_IP:7443
+   https://YOUR_SERVER_IP:7445
    ```
 
 2. Accept the self-signed certificate warning
@@ -112,7 +112,7 @@ Add to your Claude Desktop configuration:
       "command": "npx",
       "args": [
         "mcp-remote@latest",
-        "https://YOUR_SERVER_IP:8444/mcp/sse",
+        "https://YOUR_SERVER_IP:8446/mcp/sse",
         "--transport",
         "sse-only"
       ]
@@ -156,7 +156,7 @@ Restart Claude Desktop, and you'll see the Cisco FMC tools available!
                            |
            +---------------+---------------+
            |                               |
-      Port 7443                       Port 8444
+      Port 7445                       Port 8446
            |                               |
 +----------+----------+    +---------------+--------------+
 |       Web UI        |    |           Web API            |
@@ -170,7 +170,7 @@ Restart Claude Desktop, and you'll see the Cisco FMC tools available!
                     |                      |                      |
            +--------+--------+    +--------+--------+    +--------+--------+
            |   PostgreSQL    |    |   MCP Server    |    |  Cisco FMC      |
-           |   Port 15432    |    |   (stdio)       |    |  Devices        |
+           |   Port 15434    |    |   (stdio)       |    |  Devices        |
            +-----------------+    +-----------------+    +-----------------+
 
 Certificate Volume: /app/certs/ (auto-generated on first startup)
@@ -180,10 +180,10 @@ Certificate Volume: /app/certs/ (auto-generated on first startup)
 
 | Service | Port | Protocol | Description |
 |---------|------|----------|-------------|
-| Web UI | 7443 | HTTPS | Management interface |
-| Web API | 8444 | HTTPS | REST API and MCP SSE endpoint |
-| PostgreSQL | 15432 | TCP | Database (mapped from 5432) |
-| Internal HTTP | 7100 | HTTP | Internal proxy communication |
+| Web UI | 7445 | HTTPS | Management interface |
+| Web API | 8446 | HTTPS | REST API and MCP SSE endpoint |
+| PostgreSQL | 15434 | TCP | Database (mapped from 5432) |
+| Internal HTTP | 7102 | HTTP | Internal proxy communication |
 
 ## Environment Variables
 
@@ -306,10 +306,10 @@ SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT 10;
 ### Network Connectivity
 ```bash
 # Test API endpoint
-curl -k https://localhost:8444/api/health
+curl -k https://localhost:8446/api/health
 
 # Test Web UI
-curl -k https://localhost:7443
+curl -k https://localhost:7445
 ```
 
 ## Development
