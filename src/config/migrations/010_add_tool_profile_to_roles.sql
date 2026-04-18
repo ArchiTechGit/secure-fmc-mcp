@@ -45,9 +45,9 @@ VALUES
         TRUE, NOW(), NOW()
     ),
     (
-        'Network Operator',
-        'Full read-write access to all FMC operations',
-        1331,
+        'Device Operator',
+        'Read-write access to FMC device and chassis level operations',
+        270,
         TRUE, NOW(), NOW()
     ),
     (
@@ -81,14 +81,18 @@ WHERE api_name = 'fmc'
   AND http_method = 'GET'
 ON CONFLICT DO NOTHING;
 
--- "Network Operator": all methods across the entire FMC API
+-- "Device Operator": all methods for device and chassis paths
 INSERT INTO tool_profile_operations (profile_id, operation_name, created_at)
 SELECT
-    (SELECT id FROM tool_profiles WHERE name = 'Network Operator'),
+    (SELECT id FROM tool_profiles WHERE name = 'Device Operator'),
     api_name || '_' || operation_id,
     NOW()
 FROM api_endpoints
 WHERE api_name = 'fmc'
+  AND (
+    path LIKE '%/devices/%'
+    OR path LIKE '%/chassis/%'
+  )
 ON CONFLICT DO NOTHING;
 
 -- "Policy Administrator": all methods for policy and object paths
@@ -131,9 +135,9 @@ SET tool_profile_id = (SELECT id FROM tool_profiles WHERE name = 'Full Access')
 WHERE name = 'Administrator'
   AND is_system_role = TRUE;
 
--- Network Operator role maps to the Network Operator tool profile
+-- Operator/Network Operator role maps to Full Access (Device Operator is a scoped subset)
 UPDATE roles
-SET tool_profile_id = (SELECT id FROM tool_profiles WHERE name = 'Network Operator')
+SET tool_profile_id = (SELECT id FROM tool_profiles WHERE name = 'Full Access')
 WHERE name IN ('Operator', 'Network Operator')
   AND is_system_role = TRUE;
 
