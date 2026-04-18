@@ -1,8 +1,8 @@
 -- Migration 005: Fix role operation names to include API prefix
 --
 -- Root cause: Operations stored in role_operations used unprefixed names
--- (e.g., "createVlan") but MCP tool names use "{api_name}_{operation_id}"
--- format (e.g., "manage_createVlan"). This caused role-based filtering to
+-- (e.g., "getAllNetworkObjects") but MCP tool names use "{api_name}_{operation_id}"
+-- format (e.g., "fmc_getAllNetworkObjects"). This caused role-based filtering to
 -- never match, making manually-created roles ineffective.
 
 -- Update existing role_operations that have unprefixed names by looking up

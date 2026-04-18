@@ -1,7 +1,8 @@
--- Migration 009: Seed built-in troubleshooting workflows and use cases
+-- Migration 009: Seed built-in FMC workflows and use cases
 -- Version: 009
--- Date: 2026-03-18
--- Description: Seeds 10 practical workflows with steps and 8 use cases for guided troubleshooting
+-- Date: 2026-04-18
+-- Description: Seeds 6 practical FMC workflows with steps and 5 use cases
+--              covering common firewall management and operations tasks.
 
 -- ============================================================================
 -- WORKFLOWS
@@ -10,84 +11,52 @@
 INSERT INTO workflows (name, display_name, description, problem_statement, use_case_tags, is_active, priority, created_at, updated_at)
 VALUES
     (
-        'endpoint_unreachable',
-        'Endpoint Unreachable',
-        'Diagnose why a VM or host cannot be reached from the network. Walks through endpoint lookup, history, anomaly detection, interface checks, and path tracing.',
-        'A VM or endpoint is not reachable from the network.',
-        '["troubleshooting", "connectivity", "endpoint"]',
+        'deploy_config_changes',
+        'Deploy Configuration Changes',
+        'Identify devices with pending changes, review recent deployment history, push changes, and confirm successful deployment.',
+        'Configuration changes have been made and need to be deployed to one or more FMC-managed devices.',
+        '["change-management", "deployment", "operations"]',
         TRUE, 100, NOW(), NOW()
     ),
     (
-        'duplicate_ip_detection',
-        'Duplicate IP Address Detection',
-        'Identify and resolve duplicate IP address conflicts causing connectivity issues. Locates conflicting endpoints and provides resolution guidance.',
-        'Two or more hosts share the same IP address causing connectivity issues.',
-        '["troubleshooting", "ip", "duplicate", "endpoint"]',
+        'access_policy_review',
+        'Access Control Policy Review',
+        'Audit access control policies and rules, verify referenced network objects and security zones, and confirm IPS assignments.',
+        'Review access control policies for correctness, coverage, and security posture.',
+        '["policy", "security", "audit", "access-control"]',
         TRUE, 95, NOW(), NOW()
     ),
     (
-        'fabric_health_assessment',
-        'Fabric Health Assessment',
-        'Proactive health check across the entire fabric. Reviews health scores, anomalies, advisories, and switch status for early issue detection.',
-        'General fabric health check, proactive monitoring.',
-        '["monitoring", "health", "proactive"]',
+        'device_health_check',
+        'Managed Device Health Check',
+        'List all FMC-managed devices, check for pending changes, review HA pair state, and confirm health monitoring coverage.',
+        'Verify the health and operational status of all FMC-managed firewall devices.',
+        '["device-management", "health", "monitoring", "ha"]',
         TRUE, 90, NOW(), NOW()
     ),
     (
-        'interface_troubleshooting',
-        'Interface Troubleshooting',
-        'Diagnose interface issues including link down, flapping, errors, and congestion. Checks counters, statistics, and related anomalies.',
-        'Interface is down, flapping, or showing errors.',
-        '["troubleshooting", "interface", "errors"]',
+        'network_object_audit',
+        'Network Object Audit',
+        'Inventory all network, host, group, port, URL, and FQDN objects to identify gaps, duplicates, or stale entries.',
+        'Audit the FMC object library to ensure objects are current and consistently named.',
+        '["object-management", "audit", "compliance"]',
         TRUE, 85, NOW(), NOW()
     ),
     (
-        'bgp_routing_investigation',
-        'BGP/Routing Problem Investigation',
-        'Investigate routing problems including missing routes, BGP neighbor failures, and unexpected routing behavior. Checks neighbors, tables, and route churn.',
-        'Routes missing, BGP neighbor down, unexpected routing behavior.',
-        '["troubleshooting", "routing", "bgp", "l3"]',
+        'nat_policy_review',
+        'NAT Policy Review',
+        'List all NAT policies, verify device assignments, and review referenced network objects for accuracy.',
+        'Review NAT policies for correctness and ensure they are assigned to the appropriate devices.',
+        '["policy", "nat", "audit"]',
         TRUE, 80, NOW(), NOW()
     ),
     (
-        'flow_path_analysis',
-        'Flow Path Analysis',
-        'Trace and analyze the traffic path between two endpoints. Creates troubleshoot jobs, visualizes topology, and checks flow statistics.',
-        'Traffic between two endpoints is broken or taking wrong path.',
-        '["troubleshooting", "flow", "path", "connectivity"]',
+        'intrusion_prevention_audit',
+        'Intrusion Prevention Audit',
+        'List all intrusion policies, identify which access policies use IPS, and confirm IPS-enabled policies are deployed to devices.',
+        'Verify that intrusion prevention is correctly configured and actively protecting managed devices.',
+        '["security", "ips", "intrusion", "audit"]',
         TRUE, 75, NOW(), NOW()
-    ),
-    (
-        'configuration_compliance_check',
-        'Configuration Compliance Check',
-        'Verify fabric configuration matches intended state. Reviews compliance summaries, violations, pending changes, and config drift.',
-        'Verify fabric configuration matches intended state.',
-        '["compliance", "configuration", "drift"]',
-        TRUE, 70, NOW(), NOW()
-    ),
-    (
-        'advisory_alert_triage',
-        'Advisory & Alert Triage',
-        'Prioritize and resolve multiple advisories and alerts. Reviews severity, trends, recommendations, and software upgrade options.',
-        'Multiple advisories/alerts to prioritize and resolve.',
-        '["operations", "advisories", "alerts"]',
-        TRUE, 65, NOW(), NOW()
-    ),
-    (
-        'node_switch_health',
-        'Node/Switch Health Investigation',
-        'Investigate an unhealthy or unresponsive switch. Checks health overview, configuration, anomalies, infrastructure status, and cluster health.',
-        'A switch or node appears unhealthy or unresponsive.',
-        '["troubleshooting", "switch", "node", "health"]',
-        TRUE, 60, NOW(), NOW()
-    ),
-    (
-        'multicast_troubleshooting',
-        'Multicast Troubleshooting',
-        'Diagnose multicast delivery issues including IGMP and PIM problems. Checks routes, sources, receivers, group membership, and neighbor adjacency.',
-        'Multicast traffic not reaching receivers, IGMP issues.',
-        '["troubleshooting", "multicast", "igmp", "pim"]',
-        TRUE, 55, NOW(), NOW()
     )
 ON CONFLICT (name) DO NOTHING;
 
@@ -95,177 +64,92 @@ ON CONFLICT (name) DO NOTHING;
 -- WORKFLOW STEPS
 -- ============================================================================
 
--- Helper: get workflow IDs by name for FK references
--- We use subqueries to keep this idempotent
-
--- 1. Endpoint Unreachable
+-- 1. Deploy Configuration Changes
 INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
 SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
-    (1, 'analyze_listEndpointsDetails', 'Find the endpoint by IP or MAC address and confirm it exists in the fabric', 'Endpoint details including leaf, EPG, and interface attachment', FALSE),
-    (2, 'analyze_listEndpointsHistory', 'Check if the endpoint recently moved, flapped, or disappeared', 'History of endpoint events with timestamps', FALSE),
-    (3, 'analyze_listEndpointsAnomalies', 'Check for active anomalies affecting this endpoint', 'List of anomalies related to the endpoint', FALSE),
-    (4, 'analyze_getAnomalyRecommendations', 'Get fix recommendations if an anomaly was found in the previous step', 'Recommended remediation actions', TRUE),
-    (5, 'analyze_listFabricInterfaces', 'Check the status of the interface where the endpoint is attached', 'Interface operational status, speed, and errors', FALSE),
-    (6, 'analyze_getFlowTopology', 'Trace the connectivity path to the endpoint through the fabric', 'Topology visualization of the path', FALSE),
-    (7, 'analyze_getHealthSummary', 'Check overall fabric health for broader issues that may affect connectivity', 'Fabric health score and top-level status', TRUE)
+    (1, 'fmc_getAllDeployableDevices',  'List devices with pending configuration changes not yet deployed', 'Device list with pending change counts and last-modified timestamps', FALSE),
+    (2, 'fmc_getAllDeploymentRequests', 'Review recent deployment history to understand what was last pushed', 'Recent deployments: device, status, timestamp, and initiated-by', FALSE),
+    (3, 'fmc_createDeploymentRequest',  'Deploy pending changes to selected devices', 'Deployment job ID and initial status', FALSE),
+    (4, 'fmc_getJobStatus',            'Poll deployment job until complete and confirm success or failure', 'Final job status: completed, failed, or in-progress with error detail', FALSE)
 ) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'endpoint_unreachable'
+WHERE w.name = 'deploy_config_changes'
 AND NOT EXISTS (
     SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
 );
 
--- 2. Duplicate IP Address Detection
+-- 2. Access Control Policy Review
 INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
 SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
-    (1, 'analyze_listEndpointsDuplicateIps', 'List all duplicate IP addresses detected in the fabric', 'List of IPs with multiple MAC/endpoint bindings', FALSE),
-    (2, 'analyze_listEndpointsDetails', 'Get details of the conflicting endpoints (MAC, leaf, EPG)', 'Full endpoint details for each conflicting entry', FALSE),
-    (3, 'analyze_listEndpointsHistory', 'Track when the duplicate entries first appeared', 'Timeline of endpoint learn/move events', FALSE),
-    (4, 'analyze_getAnomaliesSummary', 'Check for IP-related anomalies in the system', 'Anomaly counts by category and severity', FALSE),
-    (5, 'analyze_getAnomalyRecommendations', 'Get resolution guidance for the duplicate IP anomaly', 'Recommended steps to resolve the conflict', FALSE)
+    (1, 'fmc_getAllAccessPolicies',     'List all access control policies and their default actions', 'Policy names, IDs, default actions, and description', FALSE),
+    (2, 'fmc_getAllAccessRules',        'Retrieve the rules within a specific access control policy', 'Rule list: name, action, source/dest zones, networks, ports, IPS policy', FALSE),
+    (3, 'fmc_getAllNetworkObjects',     'List network objects referenced by rules to verify they are current', 'Network object inventory: name, value, type, description', FALSE),
+    (4, 'fmc_getAllSecurityZoneObjects','Verify security zones used in policy rules are correctly defined', 'Zone list with interface assignments and descriptions', FALSE),
+    (5, 'fmc_getAllIntrusionPolicies',  'Check available intrusion policies and confirm assignments in access rules', 'IPS policy list with base policies and descriptions', TRUE)
 ) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'duplicate_ip_detection'
+WHERE w.name = 'access_policy_review'
 AND NOT EXISTS (
     SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
 );
 
--- 3. Fabric Health Assessment
+-- 3. Managed Device Health Check
 INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
 SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
-    (1, 'analyze_getHealthSummary', 'Get overall fabric health score and status', 'Health score breakdown by category', FALSE),
-    (2, 'analyze_getAnomaliesSummary', 'Review active anomalies broken down by severity', 'Anomaly counts: critical, major, minor, warning', FALSE),
-    (3, 'analyze_getAnomaliesTopNodes', 'Identify nodes with the most anomalies', 'Ranked list of nodes by anomaly count', FALSE),
-    (4, 'analyze_getAdvisoriesSummary', 'Review outstanding advisories (PSIRTs, field notices, EOL)', 'Advisory counts by type and severity', FALSE),
-    (5, 'analyze_listSwitchesSummary', 'Check switch health overview across the fabric', 'Switch status summary with health indicators', FALSE),
-    (6, 'analyze_listFabricsSummary', 'Get per-fabric status for multi-fabric environments', 'Fabric-level health and connectivity status', TRUE)
+    (1, 'fmc_getAllDevices',           'List all FMC-managed devices with registration status and software version', 'Device inventory: name, model, version, registration status, domain', FALSE),
+    (2, 'fmc_getAllDeployableDevices', 'Identify devices with pending configuration changes', 'Devices with pending changes and number of changes awaiting deployment', FALSE),
+    (3, 'fmc_getAllFTDHAPairs',        'Check HA pair state and failover health for redundant deployments', 'HA pair status: active/standby state, failover reason, last failover time', FALSE),
+    (4, 'fmc_getAllHealthPolicies',    'Confirm health monitoring policies are configured and assigned to devices', 'Health policy list with test modules and alert thresholds', TRUE)
 ) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'fabric_health_assessment'
+WHERE w.name = 'device_health_check'
 AND NOT EXISTS (
     SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
 );
 
--- 4. Interface Troubleshooting
+-- 4. Network Object Audit
 INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
 SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
-    (1, 'analyze_listFabricInterfaces', 'Find the interface and check its operational status', 'Interface admin/oper state, speed, type', FALSE),
-    (2, 'analyze_listInterfacesDetails', 'Get detailed configuration and error counters for the interface', 'Detailed counters: CRC, input/output errors, resets', FALSE),
-    (3, 'analyze_listFabricInterfacesStatistics', 'Check error rates, discard rates, and utilization over time', 'Time-series statistics for errors and throughput', FALSE),
-    (4, 'analyze_listCongestionDetails', 'Check for congestion events on the interface or related links', 'Congestion events with timestamps and severity', TRUE),
-    (5, 'analyze_getAnomaliesSummary', 'Check for interface-related anomalies in the system', 'Anomalies filtered by interface category', FALSE),
-    (6, 'analyze_getAnomalyRecommendations', 'Get fix recommendations for any detected interface anomalies', 'Recommended actions to resolve interface issues', TRUE)
+    (1, 'fmc_getAllNetworkObjects',      'Inventory all host and network CIDR objects', 'Network object list: name, value, type, description, overridable', FALSE),
+    (2, 'fmc_getAllHostGroupObjects',    'Review network group memberships for correctness', 'Group list with member objects and nested group references', FALSE),
+    (3, 'fmc_getAllProtocolPortObjects', 'Audit port and protocol service objects', 'Port object list: name, protocol, port range, description', FALSE),
+    (4, 'fmc_getAllURLObjects',          'Review URL objects used in access and SSL policies', 'URL object list: name, URL value, description', FALSE),
+    (5, 'fmc_getAllFQDNObjects',         'Check FQDN objects for currency and DNS resolution', 'FQDN object list: name, FQDN value, DNS resolution setting', TRUE)
 ) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'interface_troubleshooting'
+WHERE w.name = 'network_object_audit'
 AND NOT EXISTS (
     SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
 );
 
--- 5. BGP/Routing Problem Investigation
+-- 5. NAT Policy Review
 INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
 SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
-    (1, 'analyze_listL3NeighborsSummary', 'Check BGP/OSPF neighbor status across the fabric', 'Neighbor state summary: established, idle, active', FALSE),
-    (2, 'analyze_listL3NeighborsDetails', 'Get detailed neighbor information including timers and prefixes', 'Per-neighbor details: uptime, prefixes received/sent, state', FALSE),
-    (3, 'analyze_listProtocolsDetails', 'Review protocol configuration for BGP/OSPF instances', 'Protocol config: AS numbers, router IDs, address families', FALSE),
-    (4, 'analyze_listUrib', 'Check routing table entries for specific prefixes', 'Routing table entries with next-hops and metrics', FALSE),
-    (5, 'analyze_getUribChangesCount', 'Check for recent route churn or instability', 'Route change counts over time', FALSE),
-    (6, 'analyze_getUribNodeGraph', 'Visualize the routing path for a given prefix', 'Graph representation of route propagation', TRUE),
-    (7, 'analyze_getAnomaliesSummary', 'Check for routing-related anomalies', 'Anomalies in routing category', FALSE)
+    (1, 'fmc_getAllFTDNatPolicies', 'List all FTD NAT policies and their descriptions', 'NAT policy list: name, description, assigned devices', FALSE),
+    (2, 'fmc_getAllDevices',        'Confirm which devices have NAT policies assigned', 'Device list with policy assignments and deployment status', FALSE),
+    (3, 'fmc_getAllNetworkObjects', 'Review network objects used in NAT translated/original addresses', 'Network object inventory to validate NAT address references', TRUE)
 ) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'bgp_routing_investigation'
+WHERE w.name = 'nat_policy_review'
 AND NOT EXISTS (
     SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
 );
 
--- 6. Flow Path Analysis
+-- 6. Intrusion Prevention Audit
 INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
 SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
 FROM workflows w
 CROSS JOIN (VALUES
-    (1, 'analyze_listEndpointsDetails', 'Verify that both source and destination endpoints exist in the fabric', 'Endpoint details for source and destination', FALSE),
-    (2, 'analyze_createTroubleshootJob', 'Create a flow troubleshoot job for the source/destination pair', 'Job ID for the troubleshoot session', FALSE),
-    (3, 'analyze_getFlowTroubleshootJob', 'Retrieve the troubleshoot job results and analysis', 'Troubleshoot findings: drops, misconfigurations, contract issues', FALSE),
-    (4, 'analyze_getFlowTopology', 'Visualize the actual flow path through the fabric', 'Topology map showing hops, interfaces, and policies', FALSE),
-    (5, 'analyze_listFlowDetails', 'Get detailed per-flow statistics and metadata', 'Flow details: protocol, ports, bytes, packets', FALSE),
-    (6, 'analyze_listFlowsStatistics', 'Check flow rate, drops, and utilization trends', 'Time-series flow statistics', TRUE)
+    (1, 'fmc_getAllIntrusionPolicies', 'List all intrusion policies with their base policies and rule counts', 'IPS policy list: name, base policy, inspection mode, description', FALSE),
+    (2, 'fmc_getAllAccessPolicies',    'Identify access control policies that reference an intrusion policy', 'Access policy list to cross-reference IPS assignments in rules', FALSE),
+    (3, 'fmc_getAllDevices',           'Verify that IPS-enabled access policies are deployed to managed devices', 'Device list with currently deployed policy names', FALSE)
 ) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'flow_path_analysis'
-AND NOT EXISTS (
-    SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
-);
-
--- 7. Configuration Compliance Check
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
-FROM workflows w
-CROSS JOIN (VALUES
-    (1, 'analyze_listConformanceSummaries', 'Get overall configuration compliance summary', 'Compliance score and violation counts by category', FALSE),
-    (2, 'analyze_listConformanceDetails', 'List specific compliance violations and deviations', 'Detailed violations: object, expected vs actual config', FALSE),
-    (3, 'manage_getFabricConfigurationPreview', 'Preview any pending configuration changes', 'Pending changes that have not been deployed yet', TRUE),
-    (4, 'manage_getSwitchConfigurationDiff', 'Check per-switch config drift between intended and running', 'Config diff per switch showing drift', FALSE),
-    (5, 'analyze_getAnomaliesSummary', 'Check for configuration-related anomalies', 'Config anomalies: misconfigurations, policy violations', FALSE)
-) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'configuration_compliance_check'
-AND NOT EXISTS (
-    SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
-);
-
--- 8. Advisory & Alert Triage
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
-FROM workflows w
-CROSS JOIN (VALUES
-    (1, 'analyze_getAdvisoriesSummary', 'Get overview of all advisories by severity and type', 'Advisory counts: PSIRT, field notice, EOL by severity', FALSE),
-    (2, 'analyze_getAdvisoriesDetails', 'List individual advisories with full details', 'Advisory details: ID, title, affected versions, severity', FALSE),
-    (3, 'analyze_getAdvisoryRecommendations', 'Get fix recommendations for the highest-priority advisory', 'Recommended actions: patches, upgrades, workarounds', FALSE),
-    (4, 'analyze_getAlertsTrend', 'Check if alerts are increasing or decreasing over time', 'Alert trend data showing direction and velocity', FALSE),
-    (5, 'analyze_getSoftwareRecommendations', 'Check if software upgrades would resolve outstanding issues', 'Recommended software versions and resolved defects', TRUE),
-    (6, 'analyze_updateAlertsStatus', 'Acknowledge or dismiss resolved alerts to clean up the queue', 'Updated alert status confirmation', TRUE)
-) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'advisory_alert_triage'
-AND NOT EXISTS (
-    SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
-);
-
--- 9. Node/Switch Health Investigation
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
-FROM workflows w
-CROSS JOIN (VALUES
-    (1, 'analyze_listSwitchesSummary', 'Get switch health overview and identify the unhealthy node', 'Switch list with health scores and status', FALSE),
-    (2, 'analyze_listSwitchesConfig', 'Check the switch configuration for misconfigurations', 'Switch configuration details and settings', FALSE),
-    (3, 'analyze_getAnomaliesTopNodes', 'See how many anomalies are attributed to this node', 'Anomaly count and ranking for the node', FALSE),
-    (4, 'analyze_getAnomalyDetails', 'Get specifics on the anomalies affecting the node', 'Individual anomaly details: type, severity, description', FALSE),
-    (5, 'infra_listNodes', 'Check infrastructure-level node status and properties', 'Node properties: model, serial, firmware, uptime', FALSE),
-    (6, 'infra_getClusterHealtStatus', 'Check overall cluster health to assess systemic impact', 'Cluster health status and service availability', TRUE),
-    (7, 'analyze_getAnomalyRecommendations', 'Get fix recommendations for the node anomalies', 'Recommended remediation steps for the node', FALSE)
-) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'node_switch_health'
-AND NOT EXISTS (
-    SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
-);
-
--- 10. Multicast Troubleshooting
-INSERT INTO workflow_steps (workflow_id, step_order, operation_name, description, expected_output, optional, created_at)
-SELECT w.id, v.step_order, v.operation_name, v.description, v.expected_output, v.optional, NOW()
-FROM workflows w
-CROSS JOIN (VALUES
-    (1, 'analyze_listMulticastRoutes', 'List multicast routes to verify group registration', 'Multicast route table: groups, sources, RPF interfaces', FALSE),
-    (2, 'analyze_listMulticastRouteSources', 'Check multicast source registration and active sources', 'Registered sources per group with status', FALSE),
-    (3, 'analyze_listMulticastRouteReceivers', 'Verify receiver paths and downstream interfaces', 'Receiver list with OIF and join state', FALSE),
-    (4, 'analyze_listIgmpMulticastGroups', 'Check IGMP group membership on relevant interfaces', 'IGMP groups: members, last-reporter, expiry timers', FALSE),
-    (5, 'analyze_listIgmpInterfaces', 'Verify IGMP interface status and configuration', 'IGMP interface config: version, querier status, timers', FALSE),
-    (6, 'analyze_listPimNeighbors', 'Check PIM neighbor adjacency for multicast routing', 'PIM neighbors: address, uptime, expiry, DR priority', FALSE),
-    (7, 'analyze_listPimInterfaces', 'Verify PIM interface status and mode configuration', 'PIM interface config: mode (sparse/dense), DR, hello interval', FALSE)
-) AS v(step_order, operation_name, description, expected_output, optional)
-WHERE w.name = 'multicast_troubleshooting'
+WHERE w.name = 'intrusion_prevention_audit'
 AND NOT EXISTS (
     SELECT 1 FROM workflow_steps ws WHERE ws.workflow_id = w.id AND ws.step_order = v.step_order
 );
@@ -277,59 +161,38 @@ AND NOT EXISTS (
 INSERT INTO use_cases (name, display_name, description, category, is_active, created_at, updated_at)
 VALUES
     (
-        'connectivity_troubleshooting',
-        'Connectivity Troubleshooting',
-        'Diagnose and resolve endpoint connectivity issues including unreachable hosts, broken paths, and flow problems.',
-        'troubleshooting',
-        TRUE, NOW(), NOW()
-    ),
-    (
-        'ip_address_conflict',
-        'IP Address Conflict',
-        'Detect and resolve duplicate IP address situations where multiple endpoints share the same IP, causing intermittent connectivity.',
-        'troubleshooting',
-        TRUE, NOW(), NOW()
-    ),
-    (
-        'proactive_monitoring',
-        'Proactive Monitoring',
-        'Regular health checks across fabric and nodes to catch issues before they impact production traffic.',
-        'monitoring',
-        TRUE, NOW(), NOW()
-    ),
-    (
-        'interface_problems',
-        'Interface Problems',
-        'Troubleshoot interface-level issues including link failures, error counters, flapping, and congestion.',
-        'troubleshooting',
-        TRUE, NOW(), NOW()
-    ),
-    (
-        'routing_issues',
-        'Routing Issues',
-        'Investigate routing protocol problems including BGP neighbor failures, missing routes, and route instability.',
-        'troubleshooting',
-        TRUE, NOW(), NOW()
-    ),
-    (
-        'compliance_and_drift',
-        'Compliance & Drift',
-        'Verify that fabric configuration matches the intended state and detect any configuration drift.',
-        'compliance',
-        TRUE, NOW(), NOW()
-    ),
-    (
-        'alert_management',
-        'Alert Management',
-        'Triage, prioritize, and resolve advisories and alerts across the fabric.',
+        'change_management',
+        'Change Management',
+        'Deploy and track configuration changes to FMC-managed devices with full pre/post deployment verification.',
         'operations',
         TRUE, NOW(), NOW()
     ),
     (
-        'multicast_issues',
-        'Multicast Issues',
-        'Diagnose multicast delivery failures including IGMP membership, PIM adjacency, and source/receiver path issues.',
-        'troubleshooting',
+        'policy_review',
+        'Policy Review',
+        'Audit and validate access control and NAT policies, rules, and object references for correctness and security posture.',
+        'security',
+        TRUE, NOW(), NOW()
+    ),
+    (
+        'device_operations',
+        'Device Operations',
+        'Monitor the health, status, and pending changes across all FMC-managed firewall devices.',
+        'operations',
+        TRUE, NOW(), NOW()
+    ),
+    (
+        'object_management',
+        'Object Management',
+        'Audit the FMC object library — networks, groups, ports, URLs, and FQDNs — to maintain hygiene and consistency.',
+        'compliance',
+        TRUE, NOW(), NOW()
+    ),
+    (
+        'security_hardening',
+        'Security Hardening',
+        'Review intrusion prevention policies and confirm IPS is correctly deployed and active across managed devices.',
+        'security',
         TRUE, NOW(), NOW()
     )
 ON CONFLICT (name) DO NOTHING;
@@ -342,15 +205,13 @@ INSERT INTO use_case_workflows (use_case_id, workflow_id, created_at)
 SELECT uc.id, w.id, NOW()
 FROM use_cases uc, workflows w
 WHERE (uc.name, w.name) IN (
-    ('connectivity_troubleshooting', 'endpoint_unreachable'),
-    ('connectivity_troubleshooting', 'flow_path_analysis'),
-    ('ip_address_conflict', 'duplicate_ip_detection'),
-    ('proactive_monitoring', 'fabric_health_assessment'),
-    ('proactive_monitoring', 'node_switch_health'),
-    ('interface_problems', 'interface_troubleshooting'),
-    ('routing_issues', 'bgp_routing_investigation'),
-    ('compliance_and_drift', 'configuration_compliance_check'),
-    ('alert_management', 'advisory_alert_triage'),
-    ('multicast_issues', 'multicast_troubleshooting')
+    ('change_management',  'deploy_config_changes'),
+    ('policy_review',      'access_policy_review'),
+    ('policy_review',      'nat_policy_review'),
+    ('device_operations',  'device_health_check'),
+    ('device_operations',  'deploy_config_changes'),
+    ('object_management',  'network_object_audit'),
+    ('security_hardening', 'intrusion_prevention_audit'),
+    ('security_hardening', 'access_policy_review')
 )
 ON CONFLICT (use_case_id, workflow_id) DO NOTHING;

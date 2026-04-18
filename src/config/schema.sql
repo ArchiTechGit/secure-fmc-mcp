@@ -291,9 +291,9 @@ ON CONFLICT (name) DO NOTHING;
 
 -- Insert default tool profiles (max_tools=0 means no filtering for Full Access)
 INSERT INTO tool_profiles (name, description, max_tools) VALUES
-    ('Fabric Operations', 'Common fabric management operations for VLAN, VRF, BD, and EPG', 30),
-    ('Monitoring & Health', 'Read-only monitoring and health check operations', 25),
-    ('Troubleshooting', 'Network analysis and troubleshooting tools', 25),
+    ('Object Management', 'CRUD operations for FMC network objects, groups, zones, and services', 100),
+    ('Policy Management', 'Manage access control, NAT, intrusion, and SSL policies', 100),
+    ('Troubleshooting', 'FMC packet capture, tracer, and health monitoring tools', 30),
     ('Full Access', 'All available operations (no filtering)', 0)
 ON CONFLICT (name) DO NOTHING;
 

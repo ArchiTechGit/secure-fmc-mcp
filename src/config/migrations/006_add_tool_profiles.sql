@@ -35,9 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_users_tool_profile_id ON users(tool_profile_id);
 -- Seed default profiles
 -- max_tools=0 on 'Full Access' profile means no filtering
 INSERT INTO tool_profiles (name, description, max_tools, created_at, updated_at) VALUES
-    ('Fabric Operations', 'Common fabric management operations for VLAN, VRF, BD, and EPG', 30, NOW(), NOW()),
-    ('Monitoring & Health', 'Read-only monitoring and health check operations', 25, NOW(), NOW()),
-    ('Troubleshooting', 'Network analysis and troubleshooting tools', 25, NOW(), NOW()),
+    ('Object Management', 'CRUD operations for FMC network objects, groups, zones, and services', 100, NOW(), NOW()),
+    ('Policy Management', 'Manage access control, NAT, intrusion, and SSL policies', 100, NOW(), NOW()),
+    ('Troubleshooting', 'FMC packet capture, tracer, and health monitoring tools', 30, NOW(), NOW()),
     ('Full Access', 'All available operations (no filtering)', 0, NOW(), NOW())
 ON CONFLICT (name) DO NOTHING;
 

@@ -1,6 +1,6 @@
 -- Migration 010: Add tool_profile_id to roles for role-level tool scoping
 -- Version: 010
--- Date: 2026-03-18
+-- Date: 2026-04-18
 -- Description: Extends the roles table with an optional tool profile FK so that
 --              administrators can assign a default tool profile at the role level.
 --              User-level profiles (from migration 006) continue to take priority
@@ -23,6 +23,11 @@ COMMENT ON COLUMN roles.tool_profile_id IS
 -- ============================================================================
 -- SEED ADDITIONAL DEFAULT TOOL PROFILES
 -- "Full Access" already exists from migration 006 - skip it.
+-- Operations are populated from api_endpoints using FMC path-based filtering:
+--   /api/fmc_config/v1/domain/{domainUUID}/object/   -> Object Management
+--   /api/fmc_config/v1/domain/{domainUUID}/policy/   -> Policy Management
+--   /api/fmc_config/v1/domain/{domainUUID}/devices/  -> Device Management
+--   /api/fmc_config/v1/domain/{domainUUID}/troubleshoot/ -> Troubleshooting
 -- ============================================================================
 
 INSERT INTO tool_profiles (name, description, max_tools, is_active, created_at, updated_at)
@@ -35,77 +40,85 @@ VALUES
     ),
     (
         'Read-Only Analyst',
-        'Read-only analysis tools for monitoring and reporting',
-        120,
-        TRUE, NOW(), NOW()
-    ),
-    (
-        'Network Operator',
-        'Read and write tools for network operations',
+        'All FMC GET operations — read-only access across objects, policies, devices, and deployment',
         400,
         TRUE, NOW(), NOW()
     ),
     (
-        'Infrastructure Viewer',
-        'Infrastructure and analysis read-only tools',
+        'Network Operator',
+        'Full read-write access to all FMC operations',
+        0,
+        TRUE, NOW(), NOW()
+    ),
+    (
+        'Policy Administrator',
+        'Read-write access to FMC policy and object operations',
         200,
         TRUE, NOW(), NOW()
     ),
     (
         'Troubleshooting Only',
-        'Troubleshooting workflow tools',
+        'Packet capture, packet tracer, health monitoring, and deployment status checks',
         50,
         TRUE, NOW(), NOW()
     )
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================================================
--- POPULATE tool_profile_operations FOR EACH NEW PROFILE
--- Operation names follow the convention: api_name || '_' || operation_id
--- which matches the format used throughout role_operations and MCP tool names.
+-- POPULATE tool_profile_operations FOR EACH PROFILE
+-- Operation names follow the format: api_name || '_' || operation_id
+-- which matches the fmc_{operationId} convention used throughout the server.
 -- ============================================================================
 
--- "Read-Only Analyst": GET operations from the analyze API only
+-- "Read-Only Analyst": all GET operations across the entire FMC API
 INSERT INTO tool_profile_operations (profile_id, operation_name, created_at)
 SELECT
     (SELECT id FROM tool_profiles WHERE name = 'Read-Only Analyst'),
     api_name || '_' || operation_id,
     NOW()
 FROM api_endpoints
-WHERE api_name = 'analyze'
+WHERE api_name = 'fmc'
   AND http_method = 'GET'
 ON CONFLICT DO NOTHING;
 
--- "Network Operator": All methods across analyze and manage APIs
+-- "Network Operator": all methods across the entire FMC API
 INSERT INTO tool_profile_operations (profile_id, operation_name, created_at)
 SELECT
     (SELECT id FROM tool_profiles WHERE name = 'Network Operator'),
     api_name || '_' || operation_id,
     NOW()
 FROM api_endpoints
-WHERE api_name IN ('analyze', 'manage')
+WHERE api_name = 'fmc'
 ON CONFLICT DO NOTHING;
 
--- "Infrastructure Viewer": GET operations from infra and analyze APIs
+-- "Policy Administrator": all methods for policy and object paths
 INSERT INTO tool_profile_operations (profile_id, operation_name, created_at)
 SELECT
-    (SELECT id FROM tool_profiles WHERE name = 'Infrastructure Viewer'),
+    (SELECT id FROM tool_profiles WHERE name = 'Policy Administrator'),
     api_name || '_' || operation_id,
     NOW()
 FROM api_endpoints
-WHERE api_name IN ('infra', 'analyze')
-  AND http_method = 'GET'
+WHERE api_name = 'fmc'
+  AND (
+    path LIKE '%/policy/%'
+    OR path LIKE '%/object/%'
+  )
 ON CONFLICT DO NOTHING;
 
--- "Troubleshooting Only": Distinct operation names referenced by active workflow steps
+-- "Troubleshooting Only": GET operations for troubleshoot, health, and deployment status
 INSERT INTO tool_profile_operations (profile_id, operation_name, created_at)
-SELECT DISTINCT
+SELECT
     (SELECT id FROM tool_profiles WHERE name = 'Troubleshooting Only'),
-    ws.operation_name,
+    api_name || '_' || operation_id,
     NOW()
-FROM workflow_steps ws
-JOIN workflows w ON ws.workflow_id = w.id
-WHERE w.is_active = TRUE
+FROM api_endpoints
+WHERE api_name = 'fmc'
+  AND http_method = 'GET'
+  AND (
+    path LIKE '%/troubleshoot/%'
+    OR path LIKE '%/health/%'
+    OR path LIKE '%/deployment/%'
+  )
 ON CONFLICT DO NOTHING;
 
 -- ============================================================================
@@ -118,15 +131,13 @@ SET tool_profile_id = (SELECT id FROM tool_profiles WHERE name = 'Full Access')
 WHERE name = 'Administrator'
   AND is_system_role = TRUE;
 
--- Operator role maps to the Network Operator tool profile
--- (handles both "Operator" and legacy "Network Operator" names)
+-- Network Operator role maps to the Network Operator tool profile
 UPDATE roles
 SET tool_profile_id = (SELECT id FROM tool_profiles WHERE name = 'Network Operator')
 WHERE name IN ('Operator', 'Network Operator')
   AND is_system_role = TRUE;
 
 -- Viewer role maps to the Read-Only Analyst tool profile
--- (handles both "Viewer" and legacy "Read-Only User" names)
 UPDATE roles
 SET tool_profile_id = (SELECT id FROM tool_profiles WHERE name = 'Read-Only Analyst')
 WHERE name IN ('Viewer', 'Read-Only User')
