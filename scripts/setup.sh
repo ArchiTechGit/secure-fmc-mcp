@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Nexus Dashboard MCP Server Setup Script
+# Cisco FMC MCP Server Setup Script
 
 set -e
 
 echo "======================================"
-echo "Nexus Dashboard MCP Server Setup"
+echo "Cisco FMC MCP Server Setup"
 echo "======================================"
 echo ""
 
@@ -33,12 +33,12 @@ if [ ! -f .env ]; then
     cp .env.example .env
     echo "✓ .env file created"
     echo ""
-    echo "⚠️  IMPORTANT: Please edit .env file with your Nexus Dashboard credentials"
+    echo "⚠️  IMPORTANT: Please edit .env file with your Cisco FMC credentials"
     echo ""
     echo "Required configuration:"
-    echo "  - NEXUS_CLUSTER_URL: Your Nexus Dashboard URL"
-    echo "  - NEXUS_USERNAME: Your username"
-    echo "  - NEXUS_PASSWORD: Your password"
+    echo "  - FMC_HOST_URL: Your FMC URL (e.g. https://192.168.1.1)"
+    echo "  - FMC_USERNAME: Your FMC admin username"
+    echo "  - FMC_PASSWORD: Your FMC admin password"
     echo "  - ENCRYPTION_KEY: Generate with the command below"
     echo ""
     echo "Generate encryption key:"
@@ -55,16 +55,16 @@ echo "Validating configuration..."
 
 source .env
 
-if [ -z "$NEXUS_CLUSTER_URL" ]; then
-    echo "⚠️  NEXUS_CLUSTER_URL is not set in .env"
+if [ -z "$FMC_HOST_URL" ]; then
+    echo "⚠️  FMC_HOST_URL is not set in .env"
 fi
 
-if [ -z "$NEXUS_USERNAME" ]; then
-    echo "⚠️  NEXUS_USERNAME is not set in .env"
+if [ -z "$FMC_USERNAME" ]; then
+    echo "⚠️  FMC_USERNAME is not set in .env"
 fi
 
-if [ -z "$NEXUS_PASSWORD" ]; then
-    echo "⚠️  NEXUS_PASSWORD is not set in .env"
+if [ -z "$FMC_PASSWORD" ]; then
+    echo "⚠️  FMC_PASSWORD is not set in .env"
 fi
 
 if [ -z "$ENCRYPTION_KEY" ]; then
@@ -111,14 +111,14 @@ echo "======================================"
 echo ""
 echo "Next steps:"
 echo "  1. View logs: docker-compose logs -f"
-echo "  2. Check database: docker-compose exec postgres psql -U mcp_user -d nexus_mcp"
+echo "  2. Check database: docker-compose exec fmc_mcp_postgres psql -U mcp_user -d fmc_mcp"
 echo "  3. Configure Claude Desktop with MCP server"
 echo ""
 echo "Useful commands:"
 echo "  - Stop services: docker-compose stop"
 echo "  - Start services: docker-compose start"
-echo "  - View logs: docker-compose logs -f nd_mcp_mcp_server"
-echo "  - Restart: docker-compose restart nd_mcp_mcp_server"
+echo "  - View logs: docker-compose logs -f fmc_mcp_mcp_server"
+echo "  - Restart: docker-compose restart fmc_mcp_mcp_server"
 echo ""
 echo "Documentation: ./docs/"
 echo ""

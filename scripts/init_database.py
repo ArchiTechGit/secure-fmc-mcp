@@ -102,11 +102,11 @@ async def run_migrations():
 
 
 async def main():
-    """Initialize database and optionally bootstrap default cluster.
+    """Initialize database and optionally bootstrap default FMC device.
 
     NOTE: Environment variables are only used for initial bootstrap.
-    If a cluster already exists in the database, it will NOT be overwritten.
-    Use the Web UI to manage cluster credentials after initial setup.
+    If a device already exists in the database, it will NOT be overwritten.
+    Use the Web UI to manage device credentials after initial setup.
     """
     try:
         # Initialize database (creates tables from SQLAlchemy models)
@@ -119,37 +119,37 @@ async def main():
         logger.info("Checking for pending migrations...")
         await run_migrations()
 
-        # Check if default cluster already exists
+        # Check if default device already exists
         credential_manager = CredentialManager()
         existing_cluster = await credential_manager.get_cluster("default")
 
         if existing_cluster:
-            logger.info(f"Default cluster already exists: {existing_cluster.url}")
+            logger.info(f"Default FMC device already exists: {existing_cluster.url}")
             logger.info("Skipping environment variable bootstrap (use Web UI to modify)")
             return
 
-        # Bootstrap from environment only if no cluster exists
+        # Bootstrap from environment only if no device exists
         settings = get_settings()
 
-        if settings.nexus_cluster_url and settings.nexus_username and settings.nexus_password:
-            logger.info("No existing cluster found - bootstrapping from environment")
-            logger.info(f"Creating default cluster: {settings.nexus_cluster_url}")
+        if settings.fmc_host_url and settings.fmc_username and settings.fmc_password:
+            logger.info("No existing device found - bootstrapping from environment")
+            logger.info(f"Creating default FMC device: {settings.fmc_host_url}")
 
             await credential_manager.store_credentials(
                 name="default",
-                url=settings.nexus_cluster_url,
-                username=settings.nexus_username,
-                password=settings.nexus_password,
-                verify_ssl=settings.nexus_verify_ssl,
+                url=settings.fmc_host_url,
+                username=settings.fmc_username,
+                password=settings.fmc_password,
+                verify_ssl=settings.fmc_verify_ssl,
             )
 
-            logger.info("Default cluster created successfully")
+            logger.info("Default FMC device created successfully")
             logger.info("NOTE: Future changes should be made via Web UI, not .env file")
         else:
-            logger.warning("No Nexus Dashboard credentials found in environment")
+            logger.warning("No FMC credentials found in environment")
             logger.warning(
-                "Please configure a cluster via the Web UI or set "
-                "NEXUS_CLUSTER_URL, NEXUS_USERNAME, and NEXUS_PASSWORD for first-time setup"
+                "Please configure a device via the Web UI or set "
+                "FMC_HOST_URL, FMC_USERNAME, and FMC_PASSWORD for first-time setup"
             )
 
     except Exception as e:

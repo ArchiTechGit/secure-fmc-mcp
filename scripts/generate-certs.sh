@@ -1,12 +1,12 @@
 #!/bin/sh
-# Self-signed certificate generation script for Nexus Dashboard MCP
+# Self-signed certificate generation script for Cisco FMC MCP
 # This script generates certificates on first container startup
 #
 # Configuration via environment variables:
 #   CERT_DIR        - Directory to store certificates (default: /app/certs)
 #   CERT_DAYS       - Certificate validity in days (default: 365)
-#   CERT_CN         - Certificate Common Name (default: nexus-dashboard)
-#   CERT_ORG        - Certificate Organization (default: Nexus MCP)
+#   CERT_CN         - Certificate Common Name (default: fmc-mcp)
+#   CERT_ORG        - Certificate Organization (default: FMC MCP)
 #   CERT_SERVER_IP  - Server IP to include in SANs (optional)
 
 set -e
@@ -19,11 +19,11 @@ fi
 
 CERT_DIR="${CERT_DIR:-/app/certs}"
 CERT_DAYS="${CERT_DAYS:-365}"
-CERT_CN="${CERT_CN:-nexus-dashboard}"
-CERT_ORG="${CERT_ORG:-Nexus MCP}"
+CERT_CN="${CERT_CN:-fmc-mcp}"
+CERT_ORG="${CERT_ORG:-FMC MCP}"
 CERT_SERVER_IP="${CERT_SERVER_IP:-}"
 
-echo "=== Nexus Dashboard MCP Certificate Generator ==="
+echo "=== Cisco FMC MCP Certificate Generator ==="
 echo "Certificate directory: $CERT_DIR"
 echo "Certificate validity: $CERT_DAYS days"
 echo "Common Name: $CERT_CN"
@@ -36,13 +36,13 @@ if [ -f "$CERT_DIR/server.crt" ] && [ -f "$CERT_DIR/server.key" ]; then
     echo "Certificates already exist, skipping generation."
     echo "To regenerate certificates:"
     echo "  1. Stop containers: docker compose down"
-    echo "  2. Remove volume: docker volume rm nexus-mcp-certs"
+    echo "  2. Remove volume: docker volume rm fmc-mcp-certs"
     echo "  3. Start containers: docker compose up"
     exit 0
 fi
 
 # Build Subject Alternative Names (SANs) dynamically
-SAN_LIST="DNS:localhost,DNS:nd_mcp_web_api,DNS:nd_mcp_web_ui,IP:127.0.0.1"
+SAN_LIST="DNS:localhost,DNS:fmc_mcp_web_api,DNS:fmc_mcp_web_ui,IP:127.0.0.1"
 
 if [ -n "$CERT_SERVER_IP" ]; then
     SAN_LIST="${SAN_LIST},IP:${CERT_SERVER_IP}"
