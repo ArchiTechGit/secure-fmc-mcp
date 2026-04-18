@@ -1,236 +1,188 @@
-# Available Operations - Nexus Dashboard Manage API
+# Available Operations - Cisco FMC REST API
 
-**Total Operations**: 202
+**Total Operations**: 1,331+
+**Spec File**: `openapi_specs/fmc_oas3.json`
 **Status**: All operations available as MCP tools
 
-## Operation Summary by HTTP Method
+## Operation Summary by Tag
 
-| Method | Count | Access |
-|--------|-------|--------|
-| GET    | 85    | ✅ Always Available (Read-Only) |
-| POST   | 78    | 🔒 Requires Edit Mode |
-| PUT    | 20    | 🔒 Requires Edit Mode |
-| DELETE | 19    | 🔒 Requires Edit Mode |
+| Tag | Operations | Description |
+|-----|-----------|-------------|
+| Object | 508 | Network objects, host groups, ports, URLs, geolocation |
+| Policy | 328 | Access control, NAT, intrusion, file, DNS policies |
+| Devices | 227 | Managed devices, HA pairs, VTIs, physical/virtual interfaces |
+| Chassis | 43 | Firepower chassis and security module management |
+| Integration | 30 | Cloud, SD-WAN, and third-party integrations |
+| Templates | 29 | Device configuration templates |
+| Intelligence | 21 | Threat intelligence feeds |
+| Troubleshoot | 18 | Packet tracer, captures, health checks |
+| Device HA Pairs | 13 | High-availability pair management |
+| Deployment | 11 | Deploy pending changes to devices |
+| Health | 11 | Health policy and monitoring |
+| Network Map | 10 | Discovered network topology |
+| Backup | 9 | Backup and restore |
+| Device Clusters | 9 | Clustering configuration |
+| Users | 9 | FMC user management |
+| Updates | 8 | Software and intrusion rule updates |
+| Analysis | 6 | Active sessions, identified users, user activity |
+| Change Management | 6 | Audit trail and change records |
+| License | 6 | Smart license management |
+| System Configuration | 6 | System settings |
+
+## Access Control by HTTP Method
+
+| Method | Access |
+|--------|--------|
+| GET | ✅ Always Available (Read-Only) |
+| POST | 🔒 Requires Edit Mode |
+| PUT | 🔒 Requires Edit Mode |
+| DELETE | 🔒 Requires Edit Mode |
 
 ## Key Operation Categories
 
-### Fabrics (Core Operations)
-**Total**: 5 operations
+### Object Management
+The largest category — covers all reusable objects referenced in policies:
 
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listFabrics` | GET | `/fabrics` | Retrieve all fabrics |
-| `manage_createFabric` | POST | `/fabrics` | Create new fabric |
-| `manage_getFabricDetails` | GET | `/fabrics/{fabricName}` | Get fabric details |
-| `manage_updatefabricDetails` | PUT | `/fabrics/{fabricName}` | Update fabric |
-| `manage_deleteFabric` | DELETE | `/fabrics/{fabricName}` | Delete fabric |
+| Object Type | Example Operations |
+|-------------|-------------------|
+| Network Objects | `getAllNetworkObjects`, `createNetworkObjects`, `getNetworkObject` |
+| Host Groups | `getAllHostGroupObjects`, `createHostGroupObjects` |
+| Port Objects | `getAllProtocolPortObjects`, `createProtocolPortObjects` |
+| URL Objects | `getAllURLObjects`, `createURLObjects` |
+| FQDN Objects | `getAllFQDNObjects`, `createFQDNObjects` |
+| Geolocation | `getAllGeoLocations` |
+| Security Zones | `getAllSecurityZoneObjects`, `createSecurityZoneObjects` |
+| Variable Sets | `getAllVariableSets` |
+| VPN Topologies | `getAllVpnTopologies`, `createVpnTopology` |
+| Sinkhole Objects | `getAllSinkholeObjects` |
 
-### Switches (Primary Device Operations)
-**Total**: 14 operations
+**Tool name format**: `fmc_<operationId>`
 
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listFabricSwitches` | GET | `/fabrics/{fabricName}/switches` | List all switches in fabric |
-| `manage_createFabricSwitches` | POST | `/fabrics/{fabricName}/switches` | Add switches to fabric |
-| `manage_getFabricSwitchesSummary` | GET | `/fabrics/{fabricName}/switches/summary` | Get switches summary |
-| `manage_getFabricSwitch` | GET | `/fabrics/{fabricName}/switches/{switchId}` | Get switch details |
-| `manage_deleteFabricSwitch` | DELETE | `/fabrics/{fabricName}/switches/{switchId}` | Remove switch |
-| `manage_getSwitchInterfacesOverview` | GET | `/fabrics/{fabricName}/switches/{switchId}/interfacesOverview` | Get interfaces overview |
-| `manage_getSwitchConfigurationDiff` | GET | `/fabrics/{fabricName}/switches/{switchId}/diff` | Get config differences |
-| `manage_executeRediscoverSwitches` | POST | `/fabrics/{fabricName}/switchActions/rediscover` | Rediscover switches |
-| `manage_executeReloadSwitches` | POST | `/fabrics/{fabricName}/switchActions/reload` | Reload switches |
-| `manage_deleteFabricSwitches` | POST | `/fabrics/{fabricName}/switchActions/remove` | Remove multiple switches |
-| `manage_executeChangeCredentialSwitches` | POST | `/fabrics/{fabricName}/switchActions/changeDiscoveryCredential` | Change switch credentials |
-| `manage_executeChangeSwitchIpCollection` | POST | `/fabrics/{fabricName}/switchActions/changeIpCollection` | Change IP collection |
-| `manage_executeMoveNeighborSwitch` | POST | `/fabrics/{fabricName}/switchActions/moveNeighbor` | Move neighbor switch |
-| `manage_executeSwitchConfigurationPreview` | POST | `/fabrics/{fabricName}/switchActions/preview` | Preview config changes |
+**Example**: `fmc_getAllNetworkObjects`
 
-### Interfaces
-**Total**: 11 operations
+### Policy Management
+Covers all firewall policy types:
 
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listInterfaces` | GET | `/fabrics/{fabricName}/interfaces` | List all interfaces |
-| `manage_createInterfaces` | POST | `/fabrics/{fabricName}/interfaces` | Create interfaces |
-| `manage_getInterfacesSummary` | GET | `/fabrics/{fabricName}/interfaces/summary` | Get interfaces summary |
-| `manage_getInterface` | GET | `/fabrics/{fabricName}/interfaces/{interfaceId}` | Get interface details |
-| `manage_replaceInterface` | PUT | `/fabrics/{fabricName}/interfaces/{interfaceId}` | Update interface |
-| `manage_deleteInterface` | DELETE | `/fabrics/{fabricName}/interfaces/{interfaceId}` | Delete interface |
+| Policy Type | Example Operations |
+|-------------|-------------------|
+| Access Control | `getAllAccessPolicies`, `createAccessPolicy`, `getAccessPolicy` |
+| NAT | `getAllFTDNatPolicies`, `createFTDNatPolicy` |
+| Intrusion | `getAllIntrusionPolicies` |
+| File Policies | `getAllFilePolicies` |
+| DNS Policies | `getAllDNSPolicies` |
+| Identity Policies | `getAllIdentityPolicies` |
+| SSL Policies | `getAllSSLPolicies` |
+| QoS Policies | `getAllQosPolicies` |
+| Prefilter Policies | `getAllPrefilterPolicies` |
+| Routing | `getAllIPv4StaticRoutes`, `createIPv4StaticRoute` |
 
-### Networks
-**Total**: 8 operations
+### Device Management
+Manage the devices controlled by FMC:
 
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listNetworks` | GET | `/fabrics/{fabricName}/networks` | List all networks |
-| `manage_createNetworks` | POST | `/fabrics/{fabricName}/networks` | Create networks |
-| `manage_getNetworksSummary` | GET | `/fabrics/{fabricName}/networks/summary` | Get networks summary |
-| `manage_getNetwork` | GET | `/fabrics/{fabricName}/networks/{networkId}` | Get network details |
-| `manage_replaceNetwork` | PUT | `/fabrics/{fabricName}/networks/{networkId}` | Update network |
-| `manage_deleteNetwork` | DELETE | `/fabrics/{fabricName}/networks/{networkId}` | Delete network |
+| Area | Example Operations |
+|------|-------------------|
+| Device Records | `getAllDevices`, `registerDevice`, `getDevice`, `deleteDevice` |
+| Interfaces | `getAllFTDPhysicalInterfaces`, `getAllBridgeGroupInterfaces` |
+| HA Pairs | `getAllFTDHAPairs`, `createFTDHAPair`, `deleteHAPair` |
+| VTIs | `getAllVTIInterfaces`, `createVTIInterface` |
+| Inline Sets | `getAllInlineSets` |
 
-### VRFs (Virtual Routing and Forwarding)
-**Total**: 8 operations
+### Deployment
+Deploy pending configuration changes to devices:
 
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listVrfs` | GET | `/fabrics/{fabricName}/vrfs` | List all VRFs |
-| `manage_createVrfs` | POST | `/fabrics/{fabricName}/vrfs` | Create VRFs |
-| `manage_getVrfsSummary` | GET | `/fabrics/{fabricName}/vrfs/summary` | Get VRFs summary |
-| `manage_getVrf` | GET | `/fabrics/{fabricName}/vrfs/{vrfId}` | Get VRF details |
-| `manage_replaceVrf` | PUT | `/fabrics/{fabricName}/vrfs/{vrfId}` | Update VRF |
-| `manage_deleteVrf` | DELETE | `/fabrics/{fabricName}/vrfs/{vrfId}` | Delete VRF |
-
-### Anomalies and Compliance
-**Total**: 27 operations
-
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listComplianceAnomalyRules` | GET | `/anomalyRules/complianceRules` | List compliance rules |
-| `manage_createComplianceAnomalyRule` | POST | `/anomalyRules/complianceRules` | Create compliance rule |
-| `manage_getComplianceAnomalyRule` | GET | `/anomalyRules/complianceRules/{ruleId}` | Get rule details |
-| `manage_listAnomalies` | GET | `/fabrics/{fabricName}/anomalies` | List fabric anomalies |
-
-### Templates
-**Total**: 8 operations
-
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listTemplates` | GET | `/fabrics/{fabricName}/templates` | List all templates |
-| `manage_createTemplates` | POST | `/fabrics/{fabricName}/templates` | Create templates |
-| `manage_getTemplate` | GET | `/fabrics/{fabricName}/templates/{templateId}` | Get template details |
-| `manage_replaceTemplate` | PUT | `/fabrics/{fabricName}/templates/{templateId}` | Update template |
-| `manage_deleteTemplate` | DELETE | `/fabrics/{fabricName}/templates/{templateId}` | Delete template |
-
-### Policies
-**Total**: 20+ operations
-
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listPolicies` | GET | `/fabrics/{fabricName}/policies` | List all policies |
-| `manage_createPolicies` | POST | `/fabrics/{fabricName}/policies` | Create policies |
-| `manage_getPolicy` | GET | `/fabrics/{fabricName}/policies/{policyId}` | Get policy details |
-| `manage_replacePolicy` | PUT | `/fabrics/{fabricName}/policies/{policyId}` | Update policy |
-| `manage_deletePolicy` | DELETE | `/fabrics/{fabricName}/policies/{policyId}` | Delete policy |
-
-### Access Control Lists (ACLs)
-**Total**: 7 operations
-
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listAccessControlLists` | GET | `/fabrics/{fabricName}/accessControlLists` | List ACLs |
-| `manage_createAccessControlLists` | POST | `/fabrics/{fabricName}/accessControlLists` | Create ACLs |
-| `manage_getAccessControlListsSummary` | GET | `/fabrics/{fabricName}/accessControlListsSummary` | Get ACL summary |
-
-### Credentials
-**Total**: 11 operations
-
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_listSwitchCredentials` | GET | `/credentials/switches` | List switch credentials |
-| `manage_createSwitchCredentials` | POST | `/credentials/switches` | Create switch credentials |
-| `manage_getDefaultSwitchCredentials` | GET | `/credentials/defaultSwitchCredentials` | Get default credentials |
-| `manage_createDefaultSwitchCredentials` | POST | `/credentials/defaultSwitchCredentials` | Set default credentials |
-
-### Deployment and Configuration
-**Total**: 15+ operations
-
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_executeDeployConfiguration` | POST | `/fabrics/{fabricName}/actions/deployConfiguration` | Deploy configuration |
-| `manage_executeSaveAndDeployConfiguration` | POST | `/fabrics/{fabricName}/actions/saveAndDeployConfiguration` | Save and deploy |
-| `manage_getFabricDeploymentFreezeMode` | GET | `/fabrics/{fabricName}/deploymentFreeze` | Get deployment freeze status |
-| `manage_executeRedeployFabrics` | POST | `/fabricActions/redeploy` | Redeploy fabrics |
-
-### Smart Switches (DPU Operations)
-**Total**: 8 operations
-
-| Operation | Method | Path | Description |
-|-----------|--------|------|-------------|
-| `manage_getSmartSwitchDpus` | GET | `/fabrics/{fabricName}/smartSwitch/{switchId}/dpus` | Get DPUs |
-| `manage_getSmartSwitchDpusSummary` | GET | `/fabrics/{fabricName}/smartSwitch/{switchId}/dpus/summary` | Get DPU summary |
-| `manage_executeSmartSwitchOnboarding` | POST | `/fabrics/{fabricName}/smartSwitches/actions/updateSecureTenant` | Onboard smart switch |
-| `manage_executeSmartSwitchDeboarding` | DELETE | `/fabrics/{fabricName}/smartSwitches/{switchId}/actions/deboard` | Deboard smart switch |
+| Operation | Description |
+|-----------|-------------|
+| `createDeploymentRequest` | Deploy changes to one or more devices |
+| `getAllDeployableDevices` | List devices with pending changes |
+| `getJobStatus` | Check deployment job status |
+| `getAllDeploymentRequests` | List recent deployments |
 
 ## Usage Examples
 
-### Example 1: List All Switches in a Fabric
+### Example 1: List all network objects
 ```
-"Show me all switches in fabric 'Production-DC1'"
+"Show me all network objects defined in FMC"
 ```
-This uses: `manage_listFabricSwitches` (GET /fabrics/{fabricName}/switches)
+Uses: `fmc_getAllNetworkObjects` (GET /api/fmc_config/v1/domain/{domainUUID}/object/networks)
 
-### Example 2: Get Switch Details
+### Example 2: Get access control policies
 ```
-"Get details for switch with ID 'FOC1234X567' in fabric 'Production-DC1'"
+"List all access control policies on the FMC"
 ```
-This uses: `manage_getFabricSwitch` (GET /fabrics/{fabricName}/switches/{switchId})
+Uses: `fmc_getAllAccessPolicies` (GET /api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies)
 
-### Example 3: List Networks
+### Example 3: List managed devices
 ```
-"List all networks in fabric 'Production-DC1'"
+"Which devices are managed by this FMC?"
 ```
-This uses: `manage_listNetworks` (GET /fabrics/{fabricName}/networks)
+Uses: `fmc_getAllDevices` (GET /api/fmc_config/v1/domain/{domainUUID}/devices/devicerecords)
 
-### Example 4: Get Anomalies
+### Example 4: Check pending deployments
 ```
-"Show me recent anomalies in fabric 'Production-DC1'"
+"Which devices have pending configuration changes?"
 ```
-This uses: `manage_listAnomalies` (GET /fabrics/{fabricName}/anomalies)
+Uses: `fmc_getAllDeployableDevices` (GET /api/fmc_config/v1/domain/{domainUUID}/deployment/deployabledevices)
 
-### Example 5: View Templates
+### Example 5: Get intrusion policies
 ```
-"List all configuration templates in fabric 'Production-DC1'"
+"Show me the intrusion prevention policies"
 ```
-This uses: `manage_listTemplates` (GET /fabrics/{fabricName}/templates)
+Uses: `fmc_getAllIntrusionPolicies` (GET /api/fmc_config/v1/domain/{domainUUID}/policy/intrusionpolicies)
 
 ## Tool Name Format
 
 All operations are exposed as MCP tools with the naming format:
-- **Format**: `manage_{operation_id}`
-- **Example**: `manage_listFabricSwitches`
-- **Truncation**: If name exceeds 64 chars, uses just `operation_id`
+- **Format**: `fmc_{operationId}`
+- **Example**: `fmc_getAllNetworkObjects`
+- **Truncation**: If name exceeds 64 chars, uses just `{operationId}` truncated to 64
+
+## The `domainUUID` Parameter
+
+Most FMC config operations require `domainUUID` as a path parameter. This is the UUID of the administrative domain you want to work in. The correct value is returned in the `DOMAIN_UUID` header when you authenticate.
+
+If you have multiple domains configured, use `GET /api/fmc_platform/v1/info/domain` to list all available domains and their UUIDs.
 
 ## Read-Only vs Edit Mode
 
 ### Read-Only Mode (Default)
-- ✅ All **GET** operations available (85 operations)
+- ✅ All **GET** operations available
 - ❌ POST/PUT/DELETE operations blocked
 - Returns permission error with edit mode requirement
 
-### Edit Mode (EDIT_MODE_ENABLED=true)
+### Edit Mode (EDIT_MODE_ENABLED=true or enabled via Web UI)
 - ✅ All **GET** operations available
-- ✅ All **POST** operations available (78 operations)
-- ✅ All **PUT** operations available (20 operations)
-- ✅ All **DELETE** operations available (19 operations)
+- ✅ All **POST** operations available
+- ✅ All **PUT** operations available
+- ✅ All **DELETE** operations available
 
-## Complete Operation List
+## List All Operations
 
-To see all 202 operations with full details, use:
+To dump all operations from the spec:
 
 ```bash
-docker exec -i nd_mcp_mcp_server python -c "
+docker exec -i fmc_mcp_mcp_server python -c "
 import sys
 sys.path.insert(0, '/app')
 from src.core.api_loader import APILoader
 
 loader = APILoader()
-spec = loader.load_openapi_spec('nexus_dashboard_manage.json')
+spec = loader.load_openapi_spec('fmc_oas3.json')
 operations = loader.list_operations(spec)
 
-for op in operations:
-    print(f'{op[\"method\"]:6s} {op[\"path\"]:60s} {op[\"operation_id\"]}')
-"
+for op in sorted(operations, key=lambda x: x['tags'][0] if x['tags'] else ''):
+    tag = op['tags'][0] if op['tags'] else 'untagged'
+    print(f\"{op['method']:6s} {tag:20s} {op['operation_id']}\")
+" 2>/dev/null
 ```
 
 ## API Documentation
 
 For detailed information about each operation:
-- **OpenAPI Spec**: `openapi_specs/nexus_dashboard_manage.json`
-- **Cisco Documentation**: https://developer.cisco.com/docs/nexus-dashboard/
+- **OpenAPI Spec**: `openapi_specs/fmc_oas3.json`
+- **Cisco FMC API Explorer**: `https://YOUR_FMC_IP/api/api-explorer`
+- **Cisco Documentation**: https://www.cisco.com/c/en/us/td/docs/security/firepower/770/API/REST/secure_firewall_management_center_rest_api_quick_start_guide_770/Objects_In_The_REST_API.html
 
 ---
 
-**Last Updated**: November 23, 2025
-**API Version**: Nexus Dashboard Manage v1.0.130
-**Status**: All 202 operations available and tested
+**Last Updated**: April 2026
+**Spec Version**: FMC REST API v7.7

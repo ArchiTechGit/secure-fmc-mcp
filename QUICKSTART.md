@@ -1,11 +1,11 @@
-# Nexus Dashboard MCP Server - Quick Start Guide
+# Cisco FMC MCP Server - Quick Start Guide
 
 Get up and running in 5 minutes!
 
 ## What You Get
 
-A complete Nexus Dashboard management system with:
-- **MCP Server**: 638 operations across 4 APIs (Manage, Analyze, Infra, OneManage)
+A complete Cisco FMC management system with:
+- **MCP Server**: 1,331+ operations across the full FMC REST API (Object, Policy, Devices, and more)
 - **Web API**: FastAPI REST backend with HTTPS
 - **Web UI**: Next.js/React dashboard with authentication
 - **PostgreSQL**: Database with encrypted credentials and audit logging
@@ -16,8 +16,8 @@ A complete Nexus Dashboard management system with:
 ### Step 1: Clone and Configure
 
 ```bash
-git clone https://github.com/beye91/nexus-dashboard-mcp.git
-cd nexus-dashboard-mcp
+git clone https://github.com/your-org/fmc-mcp.git
+cd fmc-mcp
 
 # Configure your server's IP address
 echo "CERT_SERVER_IP=YOUR_SERVER_IP" > .env
@@ -28,13 +28,13 @@ Replace `YOUR_SERVER_IP` with your server's IP address (e.g., `192.168.1.213`).
 If you need to use an existing Docker bridge network, add this to `.env`:
 
 ```bash
-echo "DOCKER_EXTERNAL_NETWORK=openshell-cluster-nemoclaw" >> .env
+echo "DOCKER_EXTERNAL_NETWORK=fmc-mcp-cluster" >> .env
 ```
 
 Make sure that network already exists:
 
 ```bash
-docker network create --driver bridge openshell-cluster-nemoclaw
+docker network create --driver bridge fmc-mcp-cluster
 ```
 
 ### Step 2: Start Services
@@ -55,15 +55,15 @@ Wait for all services to start (about 1-2 minutes on first run).
    - Email: `admin@example.com`
    - Password: `Admin123!`
 
-### Step 4: Add Your Cluster
+### Step 4: Add Your FMC Device
 
 1. Navigate to **Clusters** page
 2. Click **Add New Cluster**
 3. Enter details:
-   - Name: `my-nexus-cluster`
-   - URL: `https://nexus-dashboard.example.com`
+   - Name: `my-fmc` (friendly name)
+   - URL: `https://192.168.1.1` (your FMC IP or hostname)
    - Username: `admin`
-   - Password: Your password
+   - Password: Your FMC password
    - SSL Verification: Off (for self-signed certs)
 4. Click **Test Connection** to verify
 5. Click **Create Cluster**
@@ -77,7 +77,7 @@ Add to your Claude Desktop config:
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
@@ -90,7 +90,7 @@ Add to your Claude Desktop config:
 }
 ```
 
-Restart Claude Desktop and try: "List all fabrics in my Nexus Dashboard"
+Restart Claude Desktop and try: "List all access control policies on the FMC"
 
 ## Access Points
 
@@ -121,7 +121,7 @@ docker compose down && docker compose up -d
 
 # Full reset (WARNING: deletes all data!)
 docker compose down -v
-docker volume rm nexus-mcp-certs
+docker volume rm fmc-mcp-certs
 docker compose up -d --build
 ```
 
@@ -133,29 +133,38 @@ docker compose up -d --build
 docker compose ps
 
 # Check for errors
-docker compose logs nd_mcp_web_ui
-docker compose logs nd_mcp_web_api
+docker compose logs fmc_mcp_web_ui
+docker compose logs fmc_mcp_web_api
 ```
 
 ### Certificate issues
 ```bash
 # Regenerate certificates
-docker volume rm nexus-mcp-certs
+docker volume rm fmc-mcp-certs
 docker compose up -d
 ```
 
 ### Database issues
 ```bash
 # Connect to database
-docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp
+docker compose exec fmc_mcp_postgres psql -U mcp_user -d fmc_mcp
 
 # Check tables
 \dt
 ```
 
+### Test FMC connection manually
+```bash
+# Get an auth token from FMC
+curl -k -X POST https://YOUR_FMC_IP/api/fmc_platform/v1/auth/generatetoken \
+  -u admin:password \
+  -H "Content-Type: application/json"
+# Look for X-auth-access-token in the response headers
+```
+
 ## Next Steps
 
-1. **Add more clusters**: Configure additional Nexus Dashboard instances
+1. **Add more FMC devices**: Configure additional FMC instances
 2. **Set up users**: Add team members with role-based access
 3. **Enable edit mode**: Allow write operations when needed
 4. **Review audit logs**: Monitor all API operations

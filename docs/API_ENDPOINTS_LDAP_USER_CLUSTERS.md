@@ -1,6 +1,6 @@
 # API Endpoints - LDAP Configuration and User Cluster Assignment
 
-This document describes the REST API endpoints for LDAP configuration and user cluster assignment added to the Nexus Dashboard MCP Server.
+This document describes the REST API endpoints for LDAP configuration and user cluster assignment added to the Cisco FMC MCP Server.
 
 ## Table of Contents
 
@@ -573,7 +573,7 @@ token = response.json()["token"]
 response = session.put(
     "http://localhost:8000/api/users/2/clusters",
     json={"cluster_ids": [1, 2, 3]},
-    cookies={"nexus_session": token}
+    cookies={"fmc_session": token}
 )
 print(response.json())
 ```
@@ -595,21 +595,21 @@ response = session.post(
         "is_enabled": True,
         "is_primary": True
     },
-    cookies={"nexus_session": token}
+    cookies={"fmc_session": token}
 )
 config_id = response.json()["id"]
 
 # Test connection
 test_result = session.post(
     f"http://localhost:8000/api/ldap/configs/{config_id}/test",
-    cookies={"nexus_session": token}
+    cookies={"fmc_session": token}
 )
 print(test_result.json())
 
 # Discover groups
 groups = session.get(
     f"http://localhost:8000/api/ldap/configs/{config_id}/groups",
-    cookies={"nexus_session": token}
+    cookies={"fmc_session": token}
 )
 print(groups.json())
 
@@ -621,13 +621,13 @@ session.post(
         "ldap_group_name": "Admins",
         "role_id": 1
     },
-    cookies={"nexus_session": token}
+    cookies={"fmc_session": token}
 )
 
 # Sync users
 sync_result = session.post(
     f"http://localhost:8000/api/ldap/configs/{config_id}/sync",
-    cookies={"nexus_session": token}
+    cookies={"fmc_session": token}
 )
 print(sync_result.json())
 ```
@@ -637,21 +637,21 @@ print(sync_result.json())
 ```bash
 # Get user's clusters
 curl -X GET http://localhost:8000/api/users/1/clusters \
-  -H "Cookie: nexus_session=YOUR_TOKEN"
+  -H "Cookie: fmc_session=YOUR_TOKEN"
 
 # Assign clusters
 curl -X PUT http://localhost:8000/api/users/1/clusters \
   -H "Content-Type: application/json" \
-  -H "Cookie: nexus_session=YOUR_TOKEN" \
+  -H "Cookie: fmc_session=YOUR_TOKEN" \
   -d '{"cluster_ids": [1,2,3]}'
 
 # List LDAP configs
 curl -X GET http://localhost:8000/api/ldap/configs \
-  -H "Cookie: nexus_session=YOUR_TOKEN"
+  -H "Cookie: fmc_session=YOUR_TOKEN"
 
 # Test LDAP connection
 curl -X POST http://localhost:8000/api/ldap/configs/1/test \
-  -H "Cookie: nexus_session=YOUR_TOKEN"
+  -H "Cookie: fmc_session=YOUR_TOKEN"
 ```
 
 ---

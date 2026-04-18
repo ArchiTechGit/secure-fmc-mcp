@@ -6,9 +6,9 @@ Model Context Protocol (MCP) is changing how AI assistants interact with enterpr
 
 **Who's guarding the AI's access to your network?**
 
-When an MCP server connects to Cisco Nexus Dashboard, it gains access to fabric management, device configurations, VLAN provisioning, and network topology. One poorly secured MCP endpoint could become an attack vector for your entire data center infrastructure.
+When an MCP server connects to Cisco Secure Firewall Management Center (FMC), it gains access to fabric management, device configurations, VLAN provisioning, and network topology. One poorly secured MCP endpoint could become an attack vector for your entire data center infrastructure.
 
-This guide documents the security architecture we built for the Nexus Dashboard MCP Server, a reference implementation for securing AI-to-infrastructure communication.
+This guide documents the security architecture we built for the FMC MCP Server, a reference implementation for securing AI-to-infrastructure communication.
 
 ---
 
@@ -20,7 +20,7 @@ Traditional API security focuses on human users with predictable behavior. MCP s
 
 ```
 +------------------+     +------------------+     +-------------------+
-|   Claude/GPT     |---->|   MCP Server     |---->|  Nexus Dashboard  |
+|   Claude/GPT     |---->|   MCP Server     |---->|  Cisco FMC        |
 |   (AI Agent)     |     |   (Bridge)       |     |  (Infrastructure) |
 +------------------+     +------------------+     +-------------------+
         |                        |                         |
@@ -74,7 +74,7 @@ Our implementation addresses these gaps with a defense-in-depth approach:
               +----------------------+----------------------+
               |                      |                      |
      +--------+--------+    +--------+--------+    +--------+--------+
-     |   PostgreSQL    |    |   MCP Server    |    | Nexus Dashboard |
+     |   PostgreSQL    |    |   MCP Server    |    | Cisco FMC       |
      |                 |    |                 |    |    Clusters     |
      | - Encrypted     |    | - Read-Only     |    |                 |
      |   Credentials   |    |   by Default    |    | - Per-Cluster   |
@@ -225,7 +225,7 @@ CREATE TABLE user_roles (
 
 ### 4. Encrypted Credential Storage
 
-**The Problem:** Nexus Dashboard credentials stored in plaintext can be extracted from database dumps.
+**The Problem:** FMC credentials stored in plaintext can be extracted from database dumps.
 
 **Our Solution:** Fernet symmetric encryption for all stored credentials.
 
@@ -263,7 +263,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 ENCRYPTION_KEY=gAAAAABh...your-key-here...
 ```
 
-**Result:** Database breach does not expose Nexus Dashboard credentials. Key rotation possible without data loss.
+**Result:** Database breach does not expose FMC credentials. Key rotation possible without data loss.
 
 ---
 
@@ -329,7 +329,7 @@ CREATE TABLE audit_log (
 # Session configuration
 SESSION_CONFIG = {
     "secret_key": os.environ.get("SESSION_SECRET_KEY"),
-    "cookie_name": "nexus_mcp_session",
+    "cookie_name": "fmc_session",
     "max_age": 3600,  # 1 hour
     "httponly": True,  # No JavaScript access
     "secure": True,    # HTTPS only
@@ -395,7 +395,7 @@ async def verify_mcp_token(request: Request):
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
@@ -467,7 +467,7 @@ The organizations building secure MCP implementations now will be better positio
 
 ## Resources
 
-- [Nexus Dashboard MCP Server](https://github.com/beye91/nexus-dashboard-mcp) - Full implementation
+- [Cisco FMC MCP Server](https://github.com/YOUR_ORG/secure-fmc-mcp) - Full implementation
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/) - Official MCP docs
 - [OWASP API Security Top 10](https://owasp.org/www-project-api-security/) - API security reference
 - [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework) - Security controls reference
@@ -488,4 +488,4 @@ The organizations building secure MCP implementations now will be better positio
 
 ---
 
-*This document summarizes the security implementation of the Nexus Dashboard MCP Server. For deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md). For quick start, see [QUICKSTART.md](../QUICKSTART.md).*
+*This document summarizes the security implementation of the Cisco FMC MCP Server. For deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md). For quick start, see [QUICKSTART.md](../QUICKSTART.md).*

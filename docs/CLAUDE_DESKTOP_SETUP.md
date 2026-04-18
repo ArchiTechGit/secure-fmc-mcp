@@ -2,11 +2,11 @@
 
 ## Overview
 
-This guide explains how to connect Claude Desktop to the Nexus Dashboard MCP Server, enabling Claude to interact with your Cisco Nexus Dashboard infrastructure.
+This guide explains how to connect Claude Desktop to the Cisco FMC MCP Server, enabling Claude to interact with your Cisco Secure Firewall Management Center.
 
 ## Prerequisites
 
-- Nexus Dashboard MCP Server deployed and running
+- Cisco FMC MCP Server deployed and running
 - Claude Desktop installed
 - For remote connections: Node.js 18+ installed locally
 
@@ -29,7 +29,7 @@ For accessing the MCP server running on a remote host:
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
@@ -57,12 +57,12 @@ For Claude Desktop running on the same machine as Docker:
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "docker",
       "args": [
         "exec",
         "-i",
-        "nd_mcp_mcp_server",
+        "fmc_mcp_mcp_server",
         "python",
         "src/main.py"
       ]
@@ -96,7 +96,7 @@ $env:NODE_TLS_REJECT_UNAUTHORIZED=0
 1. Download the server certificate:
    ```bash
    openssl s_client -connect YOUR_SERVER_IP:8444 -showcerts </dev/null 2>/dev/null | \
-     openssl x509 -outform PEM > nexus-mcp.crt
+     openssl x509 -outform PEM > fmc-mcp.crt
    ```
 
 2. Add to your system's trust store:
@@ -109,7 +109,7 @@ $env:NODE_TLS_REJECT_UNAUTHORIZED=0
 After restarting Claude Desktop:
 
 1. Look for the MCP server indicator (hammer icon) in Claude Desktop
-2. You should see "nexus-dashboard" listed as an available server
+2. You should see "cisco-fmc" listed as an available server
 3. The indicator should show a green status
 
 ### Test Query
@@ -117,24 +117,25 @@ After restarting Claude Desktop:
 Try asking Claude:
 
 ```
-"List all fabrics in my Nexus Dashboard"
+"List all access control policies on the FMC"
 ```
 
 or
 
 ```
-"Show me the health status of my clusters"
+"What devices are currently managed by FMC?"
 ```
 
 ## Available Operations
 
 ### Read Operations (Always Available)
 
-- Get fabrics, templates, policies
-- List anomalies and advisories
-- Query inventory and topology
-- View configurations and status
-- Get health metrics
+- List and get network objects (hosts, networks, ports, URLs)
+- View access control, NAT, and intrusion policies
+- Query managed device inventory and status
+- Get deployment status and pending changes
+- View health monitoring data
+- Browse VPN topologies
 
 ### Write Operations (Requires Edit Mode)
 
@@ -146,10 +147,10 @@ Write operations are disabled by default. To enable:
 4. Optionally whitelist specific operations
 
 Once enabled, you can:
-- Create/update/delete fabrics
-- Manage templates and policies
-- Configure devices
-- Deploy configurations
+- Create and modify network objects
+- Update access control rules
+- Deploy configuration changes to devices
+- Manage NAT and routing policies
 
 ## Secure Access with API Token
 
@@ -173,7 +174,7 @@ docker compose up -d
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
@@ -199,7 +200,7 @@ docker compose up -d
 
 2. **Check server logs:**
    ```bash
-   docker compose logs -f nd_mcp_mcp_server
+   docker compose logs -f fmc_mcp_mcp_server
    ```
 
 3. **Verify Claude Desktop config syntax:**
@@ -246,7 +247,7 @@ If you see "self-signed certificate" or "unable to verify" errors:
 ### View Real-Time Logs
 
 ```bash
-docker compose logs -f nd_mcp_mcp_server
+docker compose logs -f fmc_mcp_mcp_server
 ```
 
 ### Audit Log Access
@@ -255,7 +256,7 @@ All MCP operations are logged. View them at:
 - Web UI: `https://YOUR_SERVER_IP:7443/audit`
 - Database:
   ```bash
-  docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp -c \
+  docker compose exec fmc_mcp_postgres psql -U mcp_user -d fmc_mcp -c \
     "SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT 20;"
   ```
 
@@ -264,33 +265,34 @@ All MCP operations are logged. View them at:
 ### Read-Only Examples
 
 ```
-"Show me all fabrics configured in Nexus Dashboard"
+"Show me all network objects defined in the FMC"
 
-"What anomalies have been detected in the last 24 hours?"
+"What access control policies exist on this FMC?"
 
-"List all devices in the inventory"
+"List all devices managed by FMC"
 
-"Get the configuration of fabric 'Production-DC1'"
+"What are the NAT policies configured?"
 
-"Show me the topology of fabric 'Test-Fabric'"
+"Show me the intrusion prevention policies"
 
-"What is the health status of my clusters?"
+"Which devices have pending configuration changes that need to be deployed?"
 ```
 
 ### Write Mode Examples (After Enabling)
 
 ```
-"Create a new fabric named 'Development-Fabric'"
+"Create a new network object for 10.10.10.0/24 named 'Corp-LAN'"
 
-"Update the description of fabric 'Test-Fabric' to 'QA Environment'"
+"Add a new host object for 192.168.1.100 named 'Web-Server'"
 
-"Deploy the template 'Base-Config' to fabric 'Production-DC1'"
+"Deploy the pending changes to device 'FTD-01'"
 ```
 
 ## Best Practices
 
 1. **Start Read-Only:** Test queries before enabling write mode
-2. **Use Specific Queries:** Include fabric names and device IDs
+2. **Use Specific Names:** Include policy names, device names, and object names in queries
 3. **Monitor Logs:** Keep `docker compose logs -f` running during testing
 4. **Review Audit:** Check audit logs after operations
 5. **Limit Access:** Use API tokens in shared environments
+6. **Domain UUID:** Most FMC operations need a `domainUUID` — Claude will prompt for it or you can tell it upfront

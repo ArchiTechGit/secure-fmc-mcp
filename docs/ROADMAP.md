@@ -2,29 +2,29 @@
 
 ## Overview
 
-This roadmap outlines the development plan for the Nexus Dashboard MCP Server from initial implementation to production-ready enterprise deployment.
+This roadmap outlines the development plan for the Cisco FMC MCP Server from initial implementation to production-ready enterprise deployment.
 
 ## Phase 1: Foundation ✅ CURRENT
 
 **Timeline**: Weeks 1-2
 **Status**: In Progress
-**Goal**: Working prototype with Manage API
+**Goal**: Working prototype with full FMC API coverage
 
 ### Deliverables
 
 - [x] Project structure and configuration
 - [x] Core MCP server implementation
-- [x] Manage API integration (146 endpoints)
-- [x] Basic authentication (Basic Auth + cookies)
+- [x] FMC API integration (1,331+ operations from fmc_oas3.json)
+- [x] Token-based authentication (generatetoken / refresh / revoke)
 - [x] Security middleware (environment variable control)
 - [x] PostgreSQL database with encrypted credentials
 - [x] Docker containerization
 - [x] Initial documentation (README, ARCHITECTURE, DEPLOYMENT)
-- [ ] Testing with development Nexus Dashboard cluster
+- [ ] Testing with development FMC instance
 
 ### Success Criteria
 
-- Successfully authenticate with Nexus Dashboard
+- Successfully authenticate with Cisco FMC
 - Execute GET operations (read-only mode)
 - Toggle edit mode via environment variable
 - All operations logged to audit table
@@ -34,41 +34,39 @@ This roadmap outlines the development plan for the Nexus Dashboard MCP Server fr
 
 **Timeline**: Week 3
 **Status**: Planned
-**Goal**: Complete API coverage for all Nexus Dashboard services
+**Goal**: Extended API coverage and enhanced FMC capabilities
 
 ### Deliverables
 
-- [ ] Analyze API integration (198 endpoints)
-- [ ] Infrastructure API integration (136 endpoints)
-- [ ] OneManage API integration (14 endpoints)
-- [ ] Orchestrator API integration (after fixing parse issues)
-- [ ] Lazy loading for API sections
-- [ ] Health monitoring for each API
+- [ ] FMC Platform API extended coverage (auth, system info, domains)
+- [ ] Per-domain tool filtering and multi-domain support
+- [ ] Lazy loading for large operation sets
+- [ ] Health monitoring for FMC connectivity
 - [ ] API status dashboard (CLI)
-- [ ] Updated documentation for all APIs
+- [ ] Updated documentation for all FMC API sections
 
 ### Tasks
 
-1. **Fix Orchestrator Spec**
-   - Investigate parsing failure
-   - Validate against OpenAPI 3.0 schema
-   - Fix or report issues to Cisco
+1. **Multi-Domain Support**
+   - List available domains via `GET /api/fmc_platform/v1/info/domain`
+   - Allow per-request domain selection
+   - Cache domain UUIDs
 
-2. **Modular API Loading**
-   - Create API registry system
-   - Implement on-demand loading
-   - Add enable/disable per API
+2. **Modular Operation Loading**
+   - Load operations on-demand by tag (Objects, Policy, Devices, etc.)
+   - Implement enable/disable per tag
+   - Reduce startup time for large spec
 
 3. **Health Monitoring**
-   - Ping endpoints for each API
-   - Track availability
-   - Graceful degradation if API unavailable
+   - Ping FMC auth endpoint to verify connectivity
+   - Track token expiry and refresh state
+   - Graceful degradation if FMC unavailable
 
 ### Success Criteria
 
-- All 5 APIs loaded and functional
-- 494+ total endpoints available as MCP tools
-- Health checks show API status
+- Multi-domain FMC environments supported
+- All 1,331+ operations available as MCP tools
+- Health checks show FMC connectivity status
 - Performance benchmarks established
 
 ## Phase 3: Web Management UI
@@ -270,7 +268,7 @@ This roadmap outlines the development plan for the Nexus Dashboard MCP Server fr
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | FastMCP breaking changes | High | Pin versions, maintain fork if needed |
-| Nexus Dashboard API changes | Medium | Version-specific specs, adapter pattern |
+| FMC API version changes | Medium | Version-specific specs, adapter pattern |
 | Performance bottlenecks | Medium | Early load testing, caching strategy |
 | Security vulnerabilities | Critical | Regular audits, dependency scanning |
 
@@ -280,13 +278,13 @@ This roadmap outlines the development plan for the Nexus Dashboard MCP Server fr
 |------|--------|------------|
 | Low community adoption | Low | Focus on docs, demos, engagement |
 | Maintenance burden | Medium | Automation, modular design, CI/CD |
-| Limited Nexus Dashboard access | Low | Use DevNet sandbox, mock data |
+| Limited FMC lab access | Low | Use Cisco DevNet sandbox, mock data |
 
 ## Dependencies
 
 ### External
 
-- Nexus Dashboard API stability
+- Cisco FMC API stability
 - MCP protocol evolution
 - Docker/container ecosystem
 - PostgreSQL compatibility
@@ -310,8 +308,8 @@ This roadmap outlines the development plan for the Nexus Dashboard MCP Server fr
 
 ### Infrastructure
 
-- **Development**: Docker host, Nexus Dashboard dev cluster
-- **Testing**: CI/CD pipeline, test Nexus Dashboard
+- **Development**: Docker host, Cisco FMC dev instance
+- **Testing**: CI/CD pipeline, test Cisco FMC instance
 - **Production**: Docker registry, monitoring tools
 
 ## Metrics and KPIs

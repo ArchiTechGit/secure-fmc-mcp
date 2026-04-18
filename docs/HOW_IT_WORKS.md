@@ -1,4 +1,4 @@
-# How the Nexus Dashboard MCP Server Works
+# How the Cisco FMC MCP Server Works
 
 ## Overview
 
@@ -23,8 +23,8 @@ You now have a **complete, working system** with some parts fully connected and 
            │                           Logs every call
            ▼                                  ▼
 ┌─────────────────────┐           ┌───────────────────────┐
-│ Nexus Dashboard     │           │   PostgreSQL Database │
-│ nexus-dashboard.example.com      │           │  ┌─────────────────┐  │
+│ Cisco FMC           │           │   PostgreSQL Database │
+│ fmc.example.com                  │           │  ┌─────────────────┐  │
 │                     │           │  │ clusters        │  │
 └─────────────────────┘           │  │ audit_log       │  │
                                   │  │ security_config │  │
@@ -57,7 +57,7 @@ You in Claude: "List all fabrics"
     ↓
 MCP Server executes: manage_listFabrics
     ↓
-Auth Middleware: Connects to Nexus Dashboard
+Auth Middleware: Connects to Cisco FMC
     ↓
 API Call: GET /api/v1/manage/fabrics
     ↓
@@ -166,7 +166,7 @@ SELECT name, password_encrypted FROM clusters;
 **You can verify:**
 ```bash
 # Check the database
-docker exec -it nd_mcp_postgres psql -U mcp_user -d nexus_mcp
+docker exec -it fmc_mcp_postgres psql -U mcp_user -d fmc_mcp
 SELECT name, LEFT(password_encrypted, 20) as encrypted_preview FROM clusters;
 
 # You'll see encrypted gibberish, not plain passwords ✓
@@ -215,7 +215,7 @@ cluster_name = os.getenv("CLUSTER_NAME", "default")
 1. Go to Web UI: http://localhost:7001/clusters
 2. Click "Add New Cluster"
 3. Use name: **"default"** ← Important!
-4. Fill in your Nexus Dashboard details
+4. Fill in your Cisco FMC details
 5. MCP server will now use this cluster ✓
 
 ### 🔄 2. Edit Mode Configuration
@@ -258,13 +258,13 @@ async def _load_config(self):
 
 Edit `.env` file manually:
 ```bash
-# In /Users/cbeye/AI/nexus_dashboard_mcp/.env
+# In /app/.env
 EDIT_MODE_ENABLED=true
 ```
 
 Then restart MCP server:
 ```bash
-docker-compose restart nd_mcp_mcp_server
+docker-compose restart fmc_mcp_mcp_server
 ```
 
 ---
@@ -280,7 +280,7 @@ docker-compose restart nd_mcp_mcp_server
 2. Click "Add New Cluster"
 3. Fill form:
    Name: default  ← Use "default" for now
-   URL: https://nexus-dashboard.example.com
+   URL: https://fmc.example.com
    Username: admin
    Password: YourPassword
    SSL: ☐ Off
@@ -292,7 +292,7 @@ docker-compose restart nd_mcp_mcp_server
 **Step 2: Restart MCP server to pick up new credentials**
 
 ```bash
-docker-compose restart nd_mcp_mcp_server
+docker-compose restart fmc_mcp_mcp_server
 ```
 
 **Step 3: Use Claude Desktop**
@@ -305,7 +305,7 @@ Claude uses MCP:
 MCP Server:
   - Reads cluster "default" from database ✓
   - Decrypts password ✓
-  - Connects to nexus-dashboard.example.com ✓
+  - Connects to fmc.example.com ✓
   - Makes API call ✓
   - Logs to audit_log ✓
     ↓
@@ -330,7 +330,7 @@ You get response: "Here are the fabrics: ..."
    EDIT_MODE_ENABLED=true
 
 2. Restart MCP server:
-   docker-compose restart nd_mcp_mcp_server
+   docker-compose restart fmc_mcp_mcp_server
 
 3. Now in Claude:
    You: "Create a VLAN with ID 100"
@@ -405,7 +405,7 @@ Expected:
 [{
   "id": 1,
   "name": "default",
-  "url": "https://nexus-dashboard.example.com",
+  "url": "https://fmc.example.com",
   "username": "admin",
   "verify_ssl": false,
   "is_active": true,
@@ -506,7 +506,7 @@ GROUP BY user_id;
 3. **Read-Only Mode** - Write operations blocked by default
 4. **Web UI** - Full CRUD for clusters, view audit logs, see stats
 5. **FastAPI Backend** - All REST endpoints working
-6. **Multi-API Support** - 638 operations across 4 Nexus Dashboard APIs
+6. **Multi-API Support** - 1,331+ operations across the Cisco FMC API
 
 ### 🔄 What Needs Quick Integration (< 30 min of coding)
 

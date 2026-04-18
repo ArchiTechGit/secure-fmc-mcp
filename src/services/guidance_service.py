@@ -1,7 +1,7 @@
 """Service for managing API guidance, workflows, and system prompts.
 
 This service provides methods for managing the API Guidance System, which enhances
-Claude's ability to work with Nexus Dashboard APIs through customizable guidance,
+Claude's ability to work with Cisco FMC APIs through customizable guidance,
 workflows, tool descriptions, and system prompts.
 """
 

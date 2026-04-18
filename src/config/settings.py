@@ -1,4 +1,4 @@
-"""Configuration settings for Nexus Dashboard MCP Server."""
+"""Configuration settings for the FMC MCP Server."""
 
 import os
 from functools import lru_cache
@@ -15,86 +15,90 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore"
+        extra="ignore",
     )
 
     # Database Configuration
     database_url: str = Field(
-        default="postgresql://mcp_user:changeme@localhost:5432/nexus_mcp",
-        description="PostgreSQL database connection URL"
+        default="postgresql://mcp_user:changeme@localhost:5432/fmc_mcp",
+        description="PostgreSQL database connection URL",
     )
 
-    # Nexus Dashboard Configuration
-    nexus_cluster_url: str = Field(
-        default="https://192.168.70.101",
-        description="Nexus Dashboard cluster URL"
+    # FMC Connection Configuration
+    fmc_host_url: str = Field(
+        default="https://192.168.1.1",
+        description="Cisco FMC base URL (e.g. https://fmc.example.com)",
     )
-    nexus_username: str = Field(
+    fmc_username: str = Field(
         default="admin",
-        description="Nexus Dashboard username"
+        description="FMC username",
     )
-    nexus_password: str = Field(
+    fmc_password: str = Field(
         default="",
-        description="Nexus Dashboard password"
+        description="FMC password",
     )
-    nexus_verify_ssl: bool = Field(
+    fmc_verify_ssl: bool = Field(
         default=False,
-        description="Verify SSL certificates for Nexus Dashboard connections"
+        description="Verify SSL certificates for FMC connections",
+    )
+    fmc_domain_uuid: Optional[str] = Field(
+        default=None,
+        description=(
+            "Override the default domain UUID returned by FMC at login. "
+            "Leave empty to use the domain returned by the FMC auth token."
+        ),
     )
 
     # Security Configuration
     edit_mode_enabled: bool = Field(
         default=False,
-        description="Enable write operations (POST/PUT/DELETE)"
+        description="Enable write operations (POST/PUT/DELETE)",
     )
     encryption_key: Optional[str] = Field(
         default=None,
-        description="Fernet encryption key for credential storage"
+        description="Fernet encryption key for credential storage",
     )
     session_secret_key: str = Field(
         default="change-me-in-production",
-        description="Secret key for session management"
+        description="Secret key for session management",
     )
     session_timeout_minutes: int = Field(
         default=30,
-        description="Session timeout in minutes"
+        description="Session timeout in minutes",
     )
 
     # Server Configuration
     mcp_server_host: str = Field(
         default="0.0.0.0",
-        description="MCP server bind host"
+        description="MCP server bind host",
     )
     mcp_server_port: int = Field(
         default=8080,
-        description="MCP server port"
+        description="MCP server port",
     )
     log_level: str = Field(
         default="INFO",
-        description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
+        description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
 
     # API Configuration
     api_timeout: int = Field(
         default=30,
-        description="Nexus Dashboard API request timeout in seconds"
+        description="FMC API request timeout in seconds",
     )
     api_retry_attempts: int = Field(
         default=3,
-        description="Number of retry attempts for failed API requests"
+        description="Number of retry attempts for failed API requests",
     )
 
     @property
     def is_production(self) -> bool:
-        """Check if running in production mode."""
         return os.getenv("ENVIRONMENT", "development").lower() == "production"
 
     def get_encryption_key(self) -> bytes:
-        """Get or generate encryption key for credential storage."""
         if self.encryption_key:
             return self.encryption_key.encode()
 
-        # Generate a new key if not provided (dev only)
         if not self.is_production:
             from cryptography.fernet import Fernet
             return Fernet.generate_key()

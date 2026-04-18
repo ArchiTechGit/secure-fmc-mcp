@@ -1,4 +1,4 @@
-# Nexus Dashboard MCP Server - User Guide
+# Cisco FMC MCP Server - User Guide
 
 ## Table of Contents
 1. [Overview](#overview)
@@ -15,14 +15,14 @@
 
 ## Overview
 
-The **Nexus Dashboard MCP Server** is a Model Context Protocol (MCP) server that provides programmatic access to Cisco Nexus Dashboard APIs through Claude AI. It includes a comprehensive web-based management interface for configuration, monitoring, and auditing.
+The **Cisco FMC MCP Server** is a Model Context Protocol (MCP) server that provides programmatic access to Cisco Secure Firewall Management Center (FMC) REST APIs through Claude AI. It includes a comprehensive web-based management interface for configuration, monitoring, and auditing.
 
 ### What Does It Do?
 
-This tool acts as a bridge between Claude AI and your Cisco Nexus Dashboard infrastructure, enabling:
+This tool acts as a bridge between Claude AI and your Cisco FMC infrastructure, enabling:
 
-- **AI-Powered Network Operations**: Use natural language to query and manage your network fabric
-- **Centralized Management**: Single interface to manage multiple Nexus Dashboard clusters
+- **AI-Powered Firewall Operations**: Use natural language to query and manage firewall policies, objects, and devices
+- **Centralized Management**: Single interface to manage multiple FMC instances
 - **Audit & Compliance**: Complete audit trail of all operations with client IP tracking
 - **Security Controls**: Granular permission management and read-only mode
 - **Health Monitoring**: Real-time status of all services and components
@@ -42,7 +42,7 @@ This tool acts as a bridge between Claude AI and your Cisco Nexus Dashboard infr
        │ MCP Protocol
        │
 ┌──────┴──────────────────────────────────┐
-│    Nexus Dashboard MCP Server           │
+│    Cisco FMC MCP Server                 │
 │                                          │
 │  ┌────────────┐      ┌────────────┐    │
 │  │ MCP Server │◄────►│  Web API   │    │
@@ -60,13 +60,13 @@ This tool acts as a bridge between Claude AI and your Cisco Nexus Dashboard infr
 │  └─────────────────┘                   │
 └─────────────────────────────────────────┘
        │
-       │ Nexus Dashboard APIs
+       │ FMC REST APIs
        │
 ┌──────┴──────────────────────────────────┐
-│    Cisco Nexus Dashboard Clusters       │
+│    Cisco FMC Instances                  │
 │                                          │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐ │
-│  │ Cluster │  │ Cluster │  │ Cluster │ │
+│  │  FMC    │  │  FMC    │  │  FMC    │ │
 │  │   #1    │  │   #2    │  │   #3    │ │
 │  └─────────┘  └─────────┘  └─────────┘ │
 └──────────────────────────────────────────┘
@@ -76,8 +76,8 @@ This tool acts as a bridge between Claude AI and your Cisco Nexus Dashboard infr
 
 1. **MCP Server** (Port: stdio)
    - Implements Model Context Protocol
-   - Loads 638 operations from Nexus Dashboard OpenAPI specs
-   - Executes API calls to Nexus Dashboard clusters
+   - Loads 1,331+ operations from the FMC OpenAPI spec
+   - Executes API calls to Cisco FMC instances
    - Logs all operations to audit database
 
 2. **Web API** (Port: 8002)
@@ -101,8 +101,8 @@ This tool acts as a bridge between Claude AI and your Cisco Nexus Dashboard infr
 
 ## Key Features
 
-### 1. Multi-Cluster Management
-- Connect to multiple Nexus Dashboard instances
+### 1. Multi-Device Management
+- Connect to multiple Cisco FMC instances
 - Encrypted credential storage (Fernet encryption)
 - SSL verification options
 - Test connectivity before saving
@@ -133,12 +133,13 @@ This tool acts as a bridge between Claude AI and your Cisco Nexus Dashboard infr
 - Response time metrics
 - Auto-refresh every 30 seconds
 
-### 5. 638 Operations Available
-Supports all Nexus Dashboard DCNM APIs including:
-- **Manage API**: Fabrics, switches, VLANs, VRFs, networks, interfaces
-- **Analyze API**: Telemetry, insights, anomalies, compliance
-- **Infra API**: System health, licensing, user management
-- **OneManage API**: Device inventory, topology
+### 5. 1,331+ Operations Available
+Supports the full Cisco FMC REST API including:
+- **Object API**: Network objects, host groups, ports, URLs, geolocation, VPNs
+- **Policy API**: Access control, NAT, intrusion, file, DNS, SSL, QoS policies
+- **Devices API**: Managed device inventory, HA pairs, interfaces, routing
+- **Deployment API**: Deploy pending changes, check job status
+- **Platform API**: Authentication, domains, licensing, system info
 
 ---
 
@@ -146,8 +147,8 @@ Supports all Nexus Dashboard DCNM APIs including:
 
 ### Prerequisites
 - Docker and Docker Compose installed
-- Cisco Nexus Dashboard cluster(s) accessible
-- Admin credentials for Nexus Dashboard
+- Cisco FMC instance(s) accessible
+- Admin credentials for FMC
 
 ### Quick Start
 
@@ -161,14 +162,14 @@ Supports all Nexus Dashboard DCNM APIs including:
    http://localhost:7001
    ```
 
-3. **Add your first cluster**:
+3. **Add your first FMC device**:
    - Navigate to **Clusters** page
    - Click "Add New Cluster"
    - Fill in details:
-     - Name: `production` (friendly name)
-     - URL: `https://nexus-dashboard.example.com` (your Nexus Dashboard IP)
+     - Name: `production-fmc` (friendly name)
+     - URL: `https://192.168.1.1` (your FMC IP or hostname)
      - Username: `admin`
-     - Password: (your password)
+     - Password: (your FMC password)
      - SSL Verification: OFF (if using self-signed certs)
    - Click "Test Connection"
    - If successful, click "Create Cluster"
@@ -180,8 +181,8 @@ Supports all Nexus Dashboard DCNM APIs including:
    - Click "Save Configuration"
 
 5. **Use with Claude**:
-   - Claude AI can now query your Nexus Dashboard
-   - Example: "Show me all fabrics in my production cluster"
+   - Claude AI can now query your Cisco FMC
+   - Example: "List all access control policies on the FMC"
    - MCP Server will execute the API call and return results
 
 ---
@@ -194,7 +195,7 @@ Supports all Nexus Dashboard DCNM APIs including:
 - Links to main features
 
 ### Clusters Page
-**Purpose**: Manage Nexus Dashboard cluster connections
+**Purpose**: Manage Cisco FMC device connections
 
 **Features**:
 - View all configured clusters
@@ -221,9 +222,9 @@ Supports all Nexus Dashboard DCNM APIs including:
 - Empty list = All operations allowed (when edit mode ON)
 - Populated list = Only listed operations allowed
 - Example operations:
-  - `manage_createVlan`
-  - `manage_deleteNetwork`
-  - `analyze_getInsights`
+  - `fmc_createNetworkObjects`
+  - `fmc_createAccessPolicy`
+  - `fmc_createDeploymentRequest`
 
 **Workflow**:
 1. Enable/disable edit mode using toggle
@@ -399,15 +400,15 @@ Result: All operations allowed
 **Scenario 3: Limited Write Access**
 ```
 Edit Mode: ON
-Allowed Operations: [manage_createVlan, manage_deleteVlan]
-Result: Only VLAN operations allowed
+Allowed Operations: [fmc_createNetworkObjects, fmc_deleteNetworkObject]
+Result: Only network object write operations allowed
 ```
 
 **Scenario 4: Specific Read Access**
 ```
 Edit Mode: OFF
-Allowed Operations: [analyze_getInsights]
-Result: Only insights analysis allowed
+Allowed Operations: [fmc_getAllAccessPolicies]
+Result: Only access policy reads allowed
 ```
 
 ---
@@ -423,12 +424,12 @@ Result: Only insights analysis allowed
 | Timestamp | When operation occurred | `2025-11-23 12:25:45` |
 | Cluster ID | Database ID of cluster | `1` |
 | Cluster Name | Friendly name | `production` |
-| Cluster Endpoint | IP/URL of cluster | `https://nexus-dashboard.example.com` |
+| Cluster Endpoint | IP/URL of FMC | `https://192.168.1.1` |
 | Client IP | Source IP of request | `10.0.1.50` |
 | User ID | (Future: username) | `null` |
-| Operation ID | OpenAPI operation | `manage_createVlan` |
+| Operation ID | OpenAPI operation | `fmc_createNetworkObjects` |
 | HTTP Method | Request method | `POST` |
-| Path | API endpoint path | `/api/dcnm/vlans` |
+| Path | API endpoint path | `/api/fmc_config/v1/domain/{domainUUID}/object/networks` |
 | Request Body | JSON payload | `{"vlanId": "100"}` |
 | Response Status | HTTP status code | `201` |
 | Response Body | API response | `{"success": true}` |
@@ -540,8 +541,8 @@ docker-compose ps
 **Check logs**:
 ```bash
 docker-compose logs postgres
-docker-compose logs nd_mcp_web_api
-docker-compose logs nd_mcp_web_ui
+docker-compose logs fmc_mcp_web_api
+docker-compose logs fmc_mcp_web_ui
 ```
 
 **Common Issues**:
@@ -558,20 +559,21 @@ docker-compose ps
 
 **Check web-ui logs**:
 ```bash
-docker-compose logs nd_mcp_web_ui
+docker-compose logs fmc_mcp_web_ui
 ```
 
 **Try rebuilding**:
 ```bash
-docker-compose build nd_mcp_web_ui
-docker-compose up -d nd_mcp_web_ui
+docker-compose build fmc_mcp_web_ui
+docker-compose up -d fmc_mcp_web_ui
 ```
 
 ### Cluster Connection Failed
 
 **Test from command line**:
 ```bash
-curl -k -u admin:password https://nexus-dashboard.example.com/apidocs/
+curl -k -X POST https://YOUR_FMC_IP/api/fmc_platform/v1/auth/generatetoken \
+  -u admin:password -v 2>&1 | grep -i "domain_uuid\|access-token\|< HTTP"
 ```
 
 **Common Issues**:
@@ -602,7 +604,7 @@ curl -k -u admin:password https://nexus-dashboard.example.com/apidocs/
    - Make a test query through Claude
    - Check if MCP server is running:
      ```bash
-     docker-compose ps nd_mcp_mcp_server
+     docker-compose ps fmc_mcp_mcp_server
      ```
 
 ### Audit Logs Missing Client IP
@@ -643,7 +645,7 @@ curl -k -u admin:password https://nexus-dashboard.example.com/apidocs/
 ### Tables
 
 **clusters**:
-- Stores Nexus Dashboard cluster configurations
+- Stores Cisco FMC device connection configurations
 - Credentials encrypted with Fernet
 
 **security_config**:

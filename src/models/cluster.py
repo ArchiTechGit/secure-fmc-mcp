@@ -1,4 +1,4 @@
-"""Cluster model for storing Nexus Dashboard connection information."""
+"""FMC device model for storing Firewall Management Center connection information."""
 
 from datetime import datetime
 from typing import Optional, List, TYPE_CHECKING
@@ -14,7 +14,11 @@ if TYPE_CHECKING:
 
 
 class Cluster(Base):
-    """Model for Nexus Dashboard cluster credentials."""
+    """Model for Cisco FMC connection credentials.
+
+    The table name ``clusters`` is retained for DB compatibility with the
+    existing schema migrations; logically each row represents one FMC instance.
+    """
 
     __tablename__ = "clusters"
     __allow_unmapped__ = True
@@ -29,23 +33,18 @@ class Cluster(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
-    # Relationships
     users = relationship(
         "User",
         secondary="user_clusters",
         back_populates="clusters",
-        lazy="selectin"
+        lazy="selectin",
     )
 
     def __repr__(self) -> str:
-        return f"<Cluster(name='{self.name}', url='{self.url}', active={self.is_active})>"
+        return f"<FMCDevice(name='{self.name}', url='{self.url}', active={self.is_active})>"
 
     def to_dict(self) -> dict:
-        """Convert cluster to dictionary (excluding sensitive data).
-
-        Returns:
-            Dictionary representation of cluster
-        """
+        """Return a dictionary representation (excluding credentials)."""
         return {
             "id": self.id,
             "name": self.name,

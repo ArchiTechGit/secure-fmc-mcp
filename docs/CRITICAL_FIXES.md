@@ -59,11 +59,11 @@ This document describes the five critical fixes implemented to make the platform
 **Solution:** Per-user cluster routing via API token.
 
 ### Changes
-- `NexusDashboardMCP.__init__()` no longer requires cluster_name
+- `FMCMCPServer.__init__()` no longer requires cluster_name
 - `handle_call_tool()` accepts `cluster_name` parameter
 - `AuthMiddleware` instances cached per cluster (lazy creation)
 - MCP transport resolves target cluster from user's assigned clusters (primary = first)
-- Users with multiple clusters get a `nexus_list_clusters` utility tool
+- Users with multiple clusters get a `fmc_list_devices` utility tool
 - `get_mcp_instance()` creates unbound MCP instance
 
 ### Architecture
@@ -71,7 +71,7 @@ This document describes the five critical fixes implemented to make the platform
 User API Token -> validate_token() -> user.clusters -> primary cluster
                                                      -> handle_call_tool(cluster_name=primary)
                                                      -> AuthMiddleware(primary) [cached]
-                                                     -> Nexus Dashboard API
+                                                     -> Cisco FMC API
 ```
 
 ## Phase 5: Workflow/Use Case Improvements
@@ -113,9 +113,9 @@ condition: {"field": "step_1.output.status", "value": "success"}
 
 Apply in order:
 ```bash
-psql -U nexus_mcp -d nexus_mcp -f src/config/migrations/005_fix_role_operation_names.sql
-psql -U nexus_mcp -d nexus_mcp -f src/config/migrations/006_add_tool_profiles.sql
-psql -U nexus_mcp -d nexus_mcp -f src/config/migrations/007_workflow_and_usecase_improvements.sql
+psql -U mcp_user -d fmc_mcp -f src/config/migrations/005_fix_role_operation_names.sql
+psql -U mcp_user -d fmc_mcp -f src/config/migrations/006_add_tool_profiles.sql
+psql -U mcp_user -d fmc_mcp -f src/config/migrations/007_workflow_and_usecase_improvements.sql
 ```
 
 ## New API Endpoints Summary

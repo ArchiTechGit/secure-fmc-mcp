@@ -1,4 +1,4 @@
-"""FastAPI web application for Nexus Dashboard MCP Server management UI."""
+"""FastAPI web application for the Cisco FMC MCP Server management UI."""
 
 import csv
 import io
@@ -25,7 +25,7 @@ from src.services.role_service import RoleService
 from src.services.ldap_service import LDAPService
 from src.services.guidance_service import GuidanceService
 from src.services.tool_profile_service import ToolProfileService
-from src.services.nexus_api import NexusAPIClient
+from src.services.fmc_api import FMCAPIClient
 from src.utils.encryption import decrypt_password
 from src.api.mcp_transport import router as mcp_router
 
@@ -35,8 +35,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Nexus Dashboard MCP Server - Web API",
-    description="REST API for managing Nexus Dashboard MCP Server via web UI",
+    title="Cisco FMC MCP Server - Web API",
+    description="REST API for managing the Cisco FMC MCP Server via web UI",
     version="1.0.0",
 )
 
@@ -582,7 +582,7 @@ startup_time = datetime.utcnow()
 
 # ==================== Authentication Helpers ====================
 
-SESSION_COOKIE_NAME = "nexus_session"
+SESSION_COOKIE_NAME = "fmc_session"
 
 
 async def get_current_user(
@@ -910,7 +910,7 @@ async def delete_cluster(name: str):
 async def test_cluster_connection(cluster_data: ClusterCreate):
     """Test cluster connection without saving.
 
-    Creates a temporary NexusAPIClient and attempts to authenticate
+    Creates a temporary FMCAPIClient and attempts to authenticate
     to verify the connection and credentials are valid.
 
     If password is empty, attempt to use stored credentials from the database
@@ -946,7 +946,7 @@ async def test_cluster_connection(cluster_data: ClusterCreate):
                     }
 
         # Create a temporary API client with provided credentials
-        client = NexusAPIClient(
+        client = FMCAPIClient(
             base_url=url,
             username=username,
             password=password,
@@ -1017,7 +1017,7 @@ async def test_existing_cluster_connection(name: str):
             raise HTTPException(status_code=404, detail=f"Cluster '{name}' not found or inactive")
 
         # Create a temporary API client with stored credentials
-        client = NexusAPIClient(
+        client = FMCAPIClient(
             base_url=credentials["url"],
             username=credentials["username"],
             password=credentials["password"],

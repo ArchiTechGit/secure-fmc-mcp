@@ -1,21 +1,21 @@
-# Nexus Dashboard MCP Server
+# Cisco FMC MCP Server
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](requirements.txt)
 [![Next.js](https://img.shields.io/badge/Next.js-16.0-black?logo=next.js&logoColor=white)](web-ui/package.json)
 
-A comprehensive Model Context Protocol (MCP) server for Cisco Nexus Dashboard, enabling AI agents like Claude to interact with Nexus Dashboard APIs for intelligent network automation and management.
+A comprehensive Model Context Protocol (MCP) server for Cisco Secure Firewall Management Center (FMC), enabling AI agents like Claude to interact with FMC REST APIs for intelligent firewall automation and management.
 
 ## Features
 
 ### Core Capabilities
-- **Complete API Coverage**: Access to 638+ operations across 5 Nexus Dashboard APIs
-  - Manage API (146 endpoints): Fabrics, switches, VLANs, VRFs, networks, interfaces
-  - Analyze API: Telemetry, insights, anomalies, compliance
-  - Infrastructure API: System health, licensing, user management
-  - OneManage API: Device inventory, topology
-  - Orchestration API: Workflows and automation
+- **Complete API Coverage**: Access to 1,331+ operations across the full FMC REST API
+  - Object API (508 operations): Network objects, host groups, ports, URLs, geolocation
+  - Policy API (328 operations): Access control, NAT, intrusion, file, DNS policies
+  - Devices API (227 operations): Managed devices, HA pairs, device clusters
+  - Chassis API (43 operations): Firepower chassis management
+  - Integration, Health, Deployment, Backup, Users, and more
 
 - **Security First**:
   - HTTPS with self-signed certificates (auto-generated)
@@ -30,7 +30,7 @@ A comprehensive Model Context Protocol (MCP) server for Cisco Nexus Dashboard, e
   - User and role management
   - Real-time system health monitoring
   - Audit log viewer with CSV export
-  - Cluster management with connection testing
+  - FMC device management with connection testing
   - Security configuration dashboard
   - API guidance and workflow management
 
@@ -45,14 +45,14 @@ A comprehensive Model Context Protocol (MCP) server for Cisco Nexus Dashboard, e
 ### Prerequisites
 
 - **Docker** 20.10+ and Docker Compose 2.0+
-- **Cisco Nexus Dashboard** 4.1+ with NDFC 12.x
+- **Cisco Secure Firewall Management Center** 7.x
 - **Node.js** 18+ (for remote MCP access via mcp-remote)
 
 ### 1. Clone and Configure
 
 ```bash
-git clone https://github.com/beye91/nexus-dashboard-mcp.git
-cd nexus-dashboard-mcp
+git clone https://github.com/your-org/fmc-mcp.git
+cd fmc-mcp
 
 # Create environment file with your server's IP address
 echo "CERT_SERVER_IP=YOUR_SERVER_IP" > .env
@@ -88,12 +88,12 @@ This will:
    - Email: `admin@example.com`
    - Password: `Admin123!` (or your preferred password)
 
-4. Configure your first cluster:
+4. Configure your first FMC device:
    - Navigate to **Clusters** page
    - Click "Add New Cluster"
-   - Enter your Nexus Dashboard details
+   - Enter your FMC details (URL, username, password)
    - Click "Test Connection" to verify
-   - Save the cluster configuration
+   - Save the device configuration
 
 ### 4. Configure Claude Desktop
 
@@ -108,7 +108,7 @@ Add to your Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
@@ -130,12 +130,12 @@ Replace `YOUR_SERVER_IP` with your server's IP address.
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "docker",
       "args": [
         "exec",
         "-i",
-        "nd_mcp_mcp_server",
+        "fmc_mcp_mcp_server",
         "python",
         "src/main.py"
       ]
@@ -144,7 +144,7 @@ Replace `YOUR_SERVER_IP` with your server's IP address.
 }
 ```
 
-Restart Claude Desktop, and you'll see the Nexus Dashboard tools available!
+Restart Claude Desktop, and you'll see the Cisco FMC tools available!
 
 ## Architecture
 
@@ -169,8 +169,8 @@ Restart Claude Desktop, and you'll see the Nexus Dashboard tools available!
                     +----------------------+----------------------+
                     |                      |                      |
            +--------+--------+    +--------+--------+    +--------+--------+
-           |   PostgreSQL    |    |   MCP Server    |    | Nexus Dashboard |
-           |   Port 15432    |    |   (stdio)       |    |   Clusters      |
+           |   PostgreSQL    |    |   MCP Server    |    |  Cisco FMC      |
+           |   Port 15432    |    |   (stdio)       |    |  Devices        |
            +-----------------+    +-----------------+    +-----------------+
 
 Certificate Volume: /app/certs/ (auto-generated on first startup)
@@ -200,16 +200,13 @@ ENCRYPTION_KEY=your-unique-fernet-key
 SESSION_SECRET_KEY=your-random-secret-key
 
 # External Docker network (must already exist)
-DOCKER_EXTERNAL_NETWORK=openshell-cluster-nemoclaw
+DOCKER_EXTERNAL_NETWORK=fmc-mcp-cluster
 
-# Required by Web UI runtime proxy target
-# Docker Compose sets this to http://nd_mcp_web_api:7100 by default
-BACKEND_API_URL=http://nd_mcp_web_api:7100
-
-# Optional: Nexus Dashboard defaults (can be configured via Web UI)
-NEXUS_CLUSTER_URL=https://nexus-dashboard.example.com
-NEXUS_USERNAME=admin
-NEXUS_PASSWORD=YourPassword
+# FMC device credentials (can also be configured via Web UI)
+FMC_HOST_URL=https://192.168.1.1
+FMC_USERNAME=admin
+FMC_PASSWORD=YourPassword
+FMC_VERIFY_SSL=false
 ```
 
 **Generate Encryption Key:**
@@ -222,7 +219,7 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 ```env
 # SSL Certificate Configuration
 CERT_DAYS=365                    # Certificate validity (default: 365)
-CERT_CN=nexus-dashboard          # Certificate common name
+CERT_CN=fmc-mcp                  # Certificate common name
 
 # Security
 EDIT_MODE_ENABLED=false          # Enable write operations
@@ -237,13 +234,13 @@ LOG_LEVEL=INFO                   # DEBUG, INFO, WARNING, ERROR
 ### HTTPS Configuration
 
 Self-signed certificates are automatically generated on first startup:
-- Stored in Docker volume `nexus-mcp-certs`
+- Stored in Docker volume `fmc-mcp-certs`
 - Valid for 365 days (configurable via `CERT_DAYS`)
 - Includes localhost, 127.0.0.1, and your server IP in SAN
 
 To regenerate certificates:
 ```bash
-docker volume rm nexus-mcp-certs
+docker volume rm fmc-mcp-certs
 docker compose up -d
 ```
 
@@ -287,17 +284,17 @@ docker compose logs -f
 ### Certificate Issues
 ```bash
 # View certificate details
-docker compose exec nd_mcp_web_api openssl x509 -in /app/certs/server.crt -text -noout
+docker compose exec fmc_mcp_web_api openssl x509 -in /app/certs/server.crt -text -noout
 
 # Regenerate certificates
-docker volume rm nexus-mcp-certs
+docker volume rm fmc-mcp-certs
 docker compose up -d
 ```
 
 ### Database Issues
 ```bash
 # Connect to database
-docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp
+docker compose exec fmc_mcp_postgres psql -U mcp_user -d fmc_mcp
 
 # Check tables
 \dt
@@ -321,8 +318,8 @@ curl -k https://localhost:7443
 
 ```bash
 # Clone repository
-git clone https://github.com/beye91/nexus-dashboard-mcp.git
-cd nexus-dashboard-mcp
+git clone https://github.com/your-org/fmc-mcp.git
+cd fmc-mcp
 
 # Create virtual environment
 python -m venv venv
@@ -332,7 +329,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start database only
-docker compose up postgres -d
+docker compose up fmc_mcp_postgres -d
 
 # Run API locally
 python src/api/web_api.py
@@ -350,9 +347,9 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Acknowledgments
 
 - **Anthropic** - For the Claude AI platform and MCP protocol
-- **Cisco** - For Nexus Dashboard APIs
+- **Cisco** - For the FMC REST API
 - **FastMCP** - For the excellent MCP framework
 
 ---
 
-**Made with care for network automation**
+**Made with care for firewall automation**

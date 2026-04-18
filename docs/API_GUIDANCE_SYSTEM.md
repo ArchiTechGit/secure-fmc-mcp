@@ -2,7 +2,7 @@
 
 ## Overview
 
-The API Guidance System is a database-driven framework that enhances Claude's ability to work with Nexus Dashboard APIs by providing customizable guidance, workflows, tool descriptions, and system prompts. All guidance is stored in the database and can be updated without code changes.
+The API Guidance System is a database-driven framework that enhances Claude's ability to work with Cisco FMC APIs by providing customizable guidance, workflows, tool descriptions, and system prompts. All guidance is stored in the database and can be updated without code changes.
 
 ## Architecture
 
@@ -145,7 +145,7 @@ Create or update API guidance. If it exists, updates fields; otherwise creates n
 ```python
 guidance = await service.upsert_api_guidance(
     api_name="manage",
-    display_name="Nexus Dashboard Manage API",
+    display_name="Cisco FMC API",
     description="Manages NDFC fabrics, policies, and networks",
     general_guidance="Always check fabric state before modifications",
     is_active=True,
@@ -296,7 +296,7 @@ section = await service.upsert_system_prompt_section(
     section_name="introduction",
     display_name="Introduction",
     content="""You are an expert network automation assistant specialized in
-Cisco Nexus Dashboard operations. Your role is to help users manage and
+Cisco FMC operations. Your role is to help users manage and
 automate their data center network infrastructure efficiently and safely.""",
     section_order=1,
     is_active=True
@@ -323,10 +323,10 @@ Returns the complete prompt text ready to use.
 
 # API Reference and Best Practices
 
-## Nexus Dashboard Manage API
+## Cisco FMC API
 [Description, guidance, patterns, gotchas]
 
-## Nexus Dashboard Analyze API
+## FMC Platform API
 [Description, guidance, patterns, gotchas]
 
 # Available Workflows
@@ -377,7 +377,7 @@ service = GuidanceService()
 # 1. Create API guidance
 api_guidance = await service.upsert_api_guidance(
     api_name="manage",
-    display_name="Nexus Dashboard Manage API",
+    display_name="Cisco FMC API",
     description="NDFC API for managing fabrics, policies, and networks",
     general_guidance="Always verify fabric state before modifications",
     common_patterns="Get fabric -> Modify config -> Deploy -> Verify",

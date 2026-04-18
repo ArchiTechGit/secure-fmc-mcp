@@ -1,4 +1,4 @@
--- Nexus Dashboard MCP Server Database Schema
+-- Cisco FMC MCP Server Database Schema
 
 -- Schema migrations tracking (keeps track of which migration files have been applied)
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     applied_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
--- Clusters table for storing Nexus Dashboard cluster credentials
+-- Clusters table for storing FMC device connection credentials
 CREATE TABLE IF NOT EXISTS clusters (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
@@ -299,7 +299,7 @@ ON CONFLICT (name) DO NOTHING;
 
 -- ==================== Comments ====================
 
-COMMENT ON TABLE clusters IS 'Stores Nexus Dashboard cluster connection information with encrypted credentials';
+COMMENT ON TABLE clusters IS 'Stores Cisco FMC device connection information with encrypted credentials';
 COMMENT ON TABLE security_config IS 'Global security configuration for the MCP server';
 COMMENT ON TABLE api_endpoints IS 'Registry of all available API endpoints from OpenAPI specs';
 COMMENT ON TABLE audit_log IS 'Audit trail of all operations performed through the MCP server';
@@ -407,21 +407,18 @@ CREATE INDEX IF NOT EXISTS idx_workflow_steps_workflow_id ON workflow_steps(work
 CREATE INDEX IF NOT EXISTS idx_tool_description_overrides_operation_name ON tool_description_overrides(operation_name);
 CREATE INDEX IF NOT EXISTS idx_system_prompt_sections_section_name ON system_prompt_sections(section_name);
 
--- Default API guidance
+-- Default API guidance for FMC
 INSERT INTO api_guidance (api_name, display_name, description, when_to_use, when_not_to_use, priority)
 VALUES
-    ('manage', 'Manage API', 'Core management operations for VLAN, VRF, BD, EPG, and policy configuration', 'Use for creating, updating, or deleting network configurations.', 'Avoid for read-only operations or analysis tasks.', 10),
-    ('analyze', 'Analyze API', 'Network analysis and troubleshooting operations', 'Use for troubleshooting connectivity issues and analyzing network behavior.', 'Avoid for configuration changes.', 20),
-    ('infra', 'Infrastructure API', 'Infrastructure operations for fabric nodes and interfaces', 'Use for infrastructure queries and node status.', 'Avoid for policy configuration.', 30),
-    ('one_manage', 'OneManage API', 'Centralized management across multiple network domains', 'Use for cross-domain operations.', 'Avoid for single-fabric operations.', 40)
+    ('fmc', 'FMC API', 'Full Cisco Secure Firewall Management Center REST API — objects, policy, devices, deployment, health, and platform operations', 'Use for all FMC automation tasks including object management, policy configuration, device management, and deployment.', 'No alternatives — all FMC operations use this API.', 10)
 ON CONFLICT (api_name) DO NOTHING;
 
 -- Default system prompt sections
 INSERT INTO system_prompt_sections (section_name, section_order, title, content)
 VALUES
-    ('overview', 10, 'API Overview', 'You are working with Cisco Nexus Dashboard APIs. Select the appropriate API based on the task.'),
-    ('api_selection', 20, 'API Selection Guidelines', 'Identify if the task is configuration (manage), troubleshooting (analyze), infrastructure query (infra), or cross-domain (one_manage).'),
-    ('best_practices', 30, 'Best Practices', 'Always verify prerequisites before configuration changes. Use read operations to validate state.')
+    ('overview', 10, 'API Overview', 'You are working with the Cisco Secure Firewall Management Center (FMC) REST API. The API is organized into domains — most operations require a domainUUID path parameter.'),
+    ('api_selection', 20, 'API Selection Guidelines', 'Identify if the task is object management (fmc_config), policy management (fmc_config), device management (fmc_config), or platform/auth (fmc_platform). Use the domainUUID returned at login for all fmc_config paths.'),
+    ('best_practices', 30, 'Best Practices', 'Always retrieve the domainUUID from the session before making config calls. Use GET operations to validate current state before POST/PUT/DELETE. Check deployment status after policy changes.')
 ON CONFLICT (section_name) DO NOTHING;
 
 COMMENT ON TABLE api_guidance IS 'API-level guidance for tool selection';

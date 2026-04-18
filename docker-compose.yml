@@ -1,30 +1,30 @@
 services:
   # PostgreSQL database for credentials and audit logs
-  nd_mcp_postgres:
+  fmc_mcp_postgres:
     image: postgres:15-alpine
-    container_name: nd_mcp_postgres
+    container_name: fmc_mcp_postgres
     environment:
-      POSTGRES_DB: nexus_mcp
+      POSTGRES_DB: fmc_mcp
       POSTGRES_USER: mcp_user
       POSTGRES_PASSWORD: changeme
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./src/config/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     ports:
-      - "15432:5432"
+      - "${POSTGRES_PORT:-15434}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mcp_user -d nexus_mcp"]
+      test: ["CMD-SHELL", "pg_isready -U mcp_user -d fmc_mcp"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - nexus-mcp-network
+      - fmc-mcp-network
     restart: unless-stopped
 
   # Certificate initialization service (generates self-signed certs on first startup)
-  nd_mcp_cert_init:
+  fmc_mcp_cert_init:
     image: alpine:latest
-    container_name: nd_mcp_cert_init
+    container_name: fmc_mcp_cert_init
     command: sh /scripts/generate-certs.sh
     volumes:
       - certs:/app/certs
@@ -33,32 +33,31 @@ services:
       - CERT_DIR=/app/certs
       - CERT_DAYS=${CERT_DAYS:-365}
       - CERT_SERVER_IP=${CERT_SERVER_IP:-}
-      - CERT_CN=${CERT_CN:-nexus-dashboard}
-      - CERT_ORG=${CERT_ORG:-Nexus MCP}
+      - CERT_CN=${CERT_CN:-fmc-mcp}
+      - CERT_ORG=${CERT_ORG:-FMC MCP}
     networks:
-      - nexus-mcp-network
+      - fmc-mcp-network
 
-  # Nexus Dashboard MCP Server
-  # Connected to external bridge network for container-to-container communication
-  nd_mcp_mcp_server:
+  # Cisco FMC MCP Server
+  fmc_mcp_mcp_server:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nd_mcp_mcp_server
+    container_name: fmc_mcp_mcp_server
     depends_on:
-      nd_mcp_postgres:
+      fmc_mcp_postgres:
         condition: service_healthy
     networks:
-      - nexus-mcp-network
+      - fmc-mcp-network
     environment:
       # Database (use service name on Docker network)
-      DATABASE_URL: postgresql://mcp_user:changeme@nd_mcp_postgres:5432/nexus_mcp
+      DATABASE_URL: postgresql://mcp_user:changeme@fmc_mcp_postgres:5432/fmc_mcp
 
-      # Nexus Dashboard Connection
-      NEXUS_CLUSTER_URL: ${NEXUS_CLUSTER_URL:-https://192.168.70.101}
-      NEXUS_USERNAME: ${NEXUS_USERNAME:-admin}
-      NEXUS_PASSWORD: ${NEXUS_PASSWORD}
-      NEXUS_VERIFY_SSL: ${NEXUS_VERIFY_SSL:-false}
+      # FMC Connection
+      FMC_HOST_URL: ${FMC_HOST_URL:-https://192.168.1.1}
+      FMC_USERNAME: ${FMC_USERNAME:-admin}
+      FMC_PASSWORD: ${FMC_PASSWORD}
+      FMC_VERIFY_SSL: ${FMC_VERIFY_SSL:-false}
 
       # Security
       EDIT_MODE_ENABLED: ${EDIT_MODE_ENABLED:-false}
@@ -79,30 +78,29 @@ services:
         sleep 5 &&
         echo 'Initializing database...' &&
         python scripts/init_database.py &&
-        echo 'Starting MCP server...' &&
+        echo 'Starting FMC MCP server...' &&
         python src/main.py
       "
 
   # FastAPI Web API Backend (HTTPS)
-  # Connected to external bridge network for service discovery via DNS
-  nd_mcp_web_api:
+  fmc_mcp_web_api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nd_mcp_web_api
+    container_name: fmc_mcp_web_api
     depends_on:
-      nd_mcp_postgres:
+      fmc_mcp_postgres:
         condition: service_healthy
-      nd_mcp_cert_init:
+      fmc_mcp_cert_init:
         condition: service_completed_successfully
     networks:
-      - nexus-mcp-network
+      - fmc-mcp-network
     ports:
-      - "${WEB_API_PORT:-8444}:${WEB_API_PORT:-8444}"
-      - "${INTERNAL_HTTP_PORT:-7100}:${INTERNAL_HTTP_PORT:-7100}"
+      - "${WEB_API_PORT:-8446}:${WEB_API_PORT:-8446}"
+      - "${INTERNAL_HTTP_PORT:-7102}:${INTERNAL_HTTP_PORT:-7102}"
     environment:
       # Database (use service name on Docker network)
-      DATABASE_URL: postgresql://mcp_user:changeme@nd_mcp_postgres:5432/nexus_mcp
+      DATABASE_URL: postgresql://mcp_user:changeme@fmc_mcp_postgres:5432/fmc_mcp
 
       # Security
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-lGczu6Yzd2IrRrcJF3cOS8BsAOO6R-1761BRDusbCuM=}
@@ -114,8 +112,8 @@ services:
       SSL_ENABLED: "true"
       SSL_CERTFILE: /app/certs/server.crt
       SSL_KEYFILE: /app/certs/server.key
-      WEB_API_PORT: "8444"
-      INTERNAL_HTTP_PORT: "7100"
+      WEB_API_PORT: ${WEB_API_PORT:-8446}
+      INTERNAL_HTTP_PORT: ${INTERNAL_HTTP_PORT:-7102}
 
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -127,36 +125,36 @@ services:
     restart: unless-stopped
     command: ["sh", "/app/scripts/start-web-api.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsk https://localhost:8444/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsk https://localhost:${WEB_API_PORT:-8446}/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
 
   # Next.js Web UI (HTTPS)
-  nd_mcp_web_ui:
+  fmc_mcp_web_ui:
     build:
       context: ./web-ui
       dockerfile: Dockerfile
-    container_name: nd_mcp_web_ui
+    container_name: fmc_mcp_web_ui
     depends_on:
-      - nd_mcp_web_api
-      - nd_mcp_cert_init
+      - fmc_mcp_web_api
+      - fmc_mcp_cert_init
     networks:
-      - nexus-mcp-network
+      - fmc-mcp-network
     ports:
-      - "${WEB_UI_PORT:-7443}:${WEB_UI_PORT:-7443}"
+      - "${WEB_UI_PORT:-7445}:${WEB_UI_PORT:-7445}"
     environment:
       # Backend API URL for server-side proxying over Docker network
-      - BACKEND_API_URL=http://nd_mcp_web_api:7100
+      - BACKEND_API_URL=http://fmc_mcp_web_api:${INTERNAL_HTTP_PORT:-7102}
       # SSL/TLS Configuration
       - SSL_ENABLED=true
       - SSL_CERTFILE=/app/certs/server.crt
       - SSL_KEYFILE=/app/certs/server.key
       # External HTTPS port
-      - PORT=${WEB_UI_PORT:-7443}
-      # Internal Next.js port (configurable to avoid conflicts with other services like Grafana)
-      - INTERNAL_PORT=${WEB_UI_INTERNAL_PORT:-7100}
+      - PORT=${WEB_UI_PORT:-7445}
+      # Internal Next.js port
+      - INTERNAL_PORT=${WEB_UI_INTERNAL_PORT:-7102}
       # Allow self-signed certificates for internal communication
       - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
@@ -170,7 +168,7 @@ services:
     restart: unless-stopped
 
 networks:
-  nexus-mcp-network:
+  fmc-mcp-network:
     external: true
     name: ${DOCKER_EXTERNAL_NETWORK:-openshell-cluster-nemoclaw}
 
@@ -178,5 +176,5 @@ volumes:
   postgres_data:
     driver: local
   certs:
-    name: nexus-mcp-certs
+    name: fmc-mcp-certs
     driver: local

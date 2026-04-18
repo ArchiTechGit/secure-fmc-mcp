@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully created a complete GuidanceService implementation for the Nexus Dashboard MCP Server API Guidance System.
+Successfully created a complete GuidanceService implementation for the Cisco FMC MCP Server API Guidance System.
 
 ## Files Created
 
@@ -312,7 +312,7 @@ To use this service:
 ## Files Summary
 
 ```
-/Users/cbeye/AI/nexus_dashboard_mcp_github/
+/app/
 ├── src/
 │   ├── models/
 │   │   ├── guidance.py (NEW - 10 KB, 6 models)
@@ -354,6 +354,6 @@ To use this service:
 
 ## Conclusion
 
-The GuidanceService is complete and ready for integration. It provides a robust, database-driven system for managing API guidance that enhances Claude's ability to work with Nexus Dashboard APIs.
+The GuidanceService is complete and ready for integration. It provides a robust, database-driven system for managing API guidance that enhances Claude's ability to work with Cisco FMC APIs.
 
 All code has been validated, documented, and follows best practices for production backend systems.

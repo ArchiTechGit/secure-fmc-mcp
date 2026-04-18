@@ -21,7 +21,7 @@ all_guidance = await service.list_api_guidance(active_only=False)
 # Create or update
 guidance = await service.upsert_api_guidance(
     api_name="manage",
-    display_name="Nexus Dashboard Manage API",
+    display_name="Cisco FMC API",
     description="NDFC fabric management",
     general_guidance="Best practices...",
     common_patterns="Common patterns...",
@@ -194,7 +194,7 @@ async def setup_guidance():
     # 1. Create API guidance
     await service.upsert_api_guidance(
         api_name="manage",
-        display_name="Nexus Dashboard Manage API",
+        display_name="Cisco FMC API",
         general_guidance="Always verify state before changes",
         is_active=True
     )

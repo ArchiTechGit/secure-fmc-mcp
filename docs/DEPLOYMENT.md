@@ -5,7 +5,7 @@
 ### Required
 
 - Docker 20.10+ and Docker Compose 2.0+
-- Access to a Nexus Dashboard cluster
+- Access to a Cisco FMC instance
 - 2GB RAM minimum (4GB recommended)
 - 10GB disk space
 
@@ -43,7 +43,7 @@
     +--------------+---------------+
     |              |               |
 +--------+  +------------+  +--------------+
-|Postgres|  | MCP Server |  |Nexus Dashboard|
+|Postgres|  | MCP Server |  |Cisco FMC      |
 | 15432  |  |  (stdio)   |  |   Clusters    |
 +--------+  +------------+  +--------------+
 ```
@@ -53,8 +53,8 @@
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/beye91/nexus-dashboard-mcp.git
-cd nexus-dashboard-mcp
+git clone https://github.com/YOUR_ORG/secure-fmc-mcp.git
+cd secure-fmc-mcp
 ```
 
 ### Step 2: Configure Environment
@@ -78,7 +78,7 @@ SESSION_SECRET_KEY=your-session-secret
 
 # Optional: Certificate configuration
 CERT_DAYS=365
-CERT_CN=nexus-dashboard
+CERT_CN=fmc-mcp
 
 # Optional: Logging
 LOG_LEVEL=INFO
@@ -122,7 +122,7 @@ curl -k https://localhost:8444/api/health
    - Username: `admin`
    - Email: `admin@example.com`
    - Password: `Admin123!` (or your preferred password)
-4. Add your first Nexus Dashboard cluster
+4. Add your first Cisco FMC device
 
 ## Port Reference
 
@@ -167,7 +167,7 @@ WEB_UI_INTERNAL_PORT=7100
 
 Certificates are automatically generated on first startup:
 
-- **Location:** Docker volume `nexus-mcp-certs`
+- **Location:** Docker volume `fmc-mcp-certs`
 - **Validity:** 365 days (configurable via `CERT_DAYS`)
 - **SANs Included:**
   - `localhost`
@@ -178,7 +178,7 @@ Certificates are automatically generated on first startup:
 
 ```bash
 # Remove existing certificates
-docker volume rm nexus-mcp-certs
+docker volume rm fmc-mcp-certs
 
 # Restart services (new certificates will be generated)
 docker compose up -d
@@ -210,7 +210,7 @@ To use your own certificates:
 |----------|---------|-------------|
 | `CERT_SERVER_IP` | (none) | Your server's IP address for SSL SAN |
 | `CERT_DAYS` | `365` | Certificate validity in days |
-| `CERT_CN` | `nexus-dashboard` | Certificate common name |
+| `CERT_CN` | `fmc-mcp` | Certificate common name |
 | `ENCRYPTION_KEY` | (auto) | Fernet key for credential encryption |
 | `SESSION_SECRET_KEY` | (auto) | Session signing key |
 | `BACKEND_API_URL` | (required) | Web UI runtime target for proxied API requests |
@@ -230,9 +230,9 @@ To use your own certificates:
 |----------|---------|-------------|
 | `EDIT_MODE_ENABLED` | `false` | Enable write operations |
 | `MCP_API_TOKEN` | (none) | Optional token for MCP access |
-| `NEXUS_VERIFY_SSL` | `false` | Verify Nexus Dashboard SSL |
+| `FMC_VERIFY_SSL` | `false` | Verify FMC SSL |
 
-### Nexus Dashboard (Optional)
+### Cisco FMC (Optional)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -255,7 +255,7 @@ For connecting to the MCP server running on a different host:
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
@@ -279,12 +279,12 @@ For Claude Desktop running on the same machine:
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "docker",
       "args": [
         "exec",
         "-i",
-        "nd_mcp_mcp_server",
+        "fmc_mcp_mcp_server",
         "python",
         "src/main.py"
       ]
@@ -310,7 +310,7 @@ For Claude Desktop running on the same machine:
 docker compose ps
 
 # View detailed health status
-docker inspect nd_mcp_web_api --format='{{.State.Health.Status}}'
+docker inspect fmc_mcp_web_api --format='{{.State.Health.Status}}'
 ```
 
 ### API Health Endpoint
@@ -342,7 +342,7 @@ Access `https://YOUR_SERVER_IP:7443/health` for a visual health dashboard.
 ### Connect to Database
 
 ```bash
-docker compose exec nd_mcp_postgres psql -U mcp_user -d nexus_mcp
+docker compose exec fmc_mcp_postgres psql -U mcp_user -d fmc_mcp
 ```
 
 ### Common Queries
@@ -368,10 +368,10 @@ SELECT id, username, email, is_active FROM users;
 
 ```bash
 # Create backup
-docker compose exec nd_mcp_postgres pg_dump -U mcp_user nexus_mcp > backup-$(date +%Y%m%d).sql
+docker compose exec fmc_mcp_postgres pg_dump -U mcp_user fmc_mcp > backup-$(date +%Y%m%d).sql
 
 # Restore from backup
-docker compose exec -T postgres psql -U mcp_user nexus_mcp < backup-20250101.sql
+docker compose exec -T postgres psql -U mcp_user fmc_mcp < backup-20250101.sql
 ```
 
 ## Troubleshooting
@@ -380,8 +380,8 @@ docker compose exec -T postgres psql -U mcp_user nexus_mcp < backup-20250101.sql
 
 ```bash
 # Check logs for errors
-docker compose logs nd_mcp_web_api
-docker compose logs nd_mcp_web_ui
+docker compose logs fmc_mcp_web_api
+docker compose logs fmc_mcp_web_ui
 
 # Verify port availability
 netstat -tlnp | grep -E '7443|8444|15432'
@@ -391,17 +391,17 @@ netstat -tlnp | grep -E '7443|8444|15432'
 
 ```bash
 # View certificate details
-docker compose exec nd_mcp_web_api openssl x509 -in /app/certs/server.crt -text -noout
+docker compose exec fmc_mcp_web_api openssl x509 -in /app/certs/server.crt -text -noout
 
 # Check certificate expiration
-docker compose exec nd_mcp_web_api openssl x509 -in /app/certs/server.crt -noout -dates
+docker compose exec fmc_mcp_web_api openssl x509 -in /app/certs/server.crt -noout -dates
 ```
 
 ### Database Connection Issues
 
 ```bash
 # Test database connectivity
-docker compose exec nd_mcp_postgres pg_isready -U mcp_user
+docker compose exec fmc_mcp_postgres pg_isready -U mcp_user
 
 # Check database logs
 docker compose logs postgres

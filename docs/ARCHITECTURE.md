@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Nexus Dashboard MCP Server is built with a modular, layered architecture designed for security, maintainability, and extensibility.
+The Cisco FMC MCP Server is built with a modular, layered architecture designed for security, maintainability, and extensibility.
 
 ## Core Components
 
@@ -11,11 +11,12 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 **Purpose**: Handles MCP protocol communication and tool registration
 
 **Key Files**:
-- `mcp_server.py`: Main MCP server implementation
+- `mcp_server.py`: Main MCP server implementation (`FMCMCPServer`)
 - `api_loader.py`: OpenAPI specification loader and validator
+- `api_registry.py`: FMC API definition registry
 
 **Responsibilities**:
-- Load and validate OpenAPI specifications
+- Load and validate the FMC OpenAPI specification
 - Generate MCP tools from API operations
 - Handle tool execution requests
 - Manage stdio communication
@@ -25,10 +26,10 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 **Purpose**: Cross-cutting concerns for all API operations
 
 #### Authentication Middleware (`auth.py`)
-- Manages Nexus Dashboard authentication
-- Handles session/cookie management
+- Manages FMC token-based authentication
+- Handles access/refresh token lifecycle
 - Executes authenticated API requests
-- Automatic token refresh on expiration
+- Automatic token refresh on 401 responses
 
 #### Security Middleware (`security.py`)
 - Enforces read-only vs edit mode
@@ -48,21 +49,21 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 
 #### Credential Manager (`credential_manager.py`)
 - Secure credential storage with Fernet encryption
-- CRUD operations for cluster credentials
+- CRUD operations for FMC device credentials
 - Credential retrieval and decryption
 
-#### Nexus API Client (`nexus_api.py`)
-- HTTP client for Nexus Dashboard
-- Authentication handling
+#### FMC API Client (`fmc_api.py`)
+- HTTP client for the Cisco FMC REST API
+- Token generation via `/api/fmc_platform/v1/auth/generatetoken`
+- Access token refresh and revocation
 - Retry logic and error handling
-- Connection pooling
 
 ### 4. Data Layer (`src/models/`)
 
 **Purpose**: Database models using SQLAlchemy ORM
 
 **Models**:
-- `Cluster`: Nexus Dashboard cluster credentials
+- `Cluster`: FMC device connection credentials
 - `SecurityConfig`: Global security settings
 - `APIEndpoint`: Registry of available API operations
 - `AuditLog`: Audit trail of all operations
@@ -72,7 +73,7 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 **Purpose**: Application configuration and database setup
 
 **Components**:
-- `settings.py`: Pydantic settings from environment
+- `settings.py`: Pydantic settings from environment (`FMC_HOST_URL`, `FMC_USERNAME`, etc.)
 - `database.py`: SQLAlchemy async engine setup
 - `schema.sql`: PostgreSQL schema definition
 
@@ -84,9 +85,9 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 1. User Query → Claude Desktop
 2. Claude Desktop → MCP Server (tool call)
 3. MCP Server → Security Middleware (check: always allowed)
-4. MCP Server → Auth Middleware (authenticate if needed)
-5. Auth Middleware → Nexus Dashboard API
-6. Nexus Dashboard → Response
+4. MCP Server → Auth Middleware (authenticate/refresh token if needed)
+5. Auth Middleware → FMC REST API
+6. FMC → Response
 7. MCP Server → Audit Logger (log success)
 8. MCP Server → Claude Desktop (return data)
 ```
@@ -100,8 +101,8 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
    ├─ If disabled → PermissionError → User
    └─ If enabled → Continue
 4. MCP Server → Auth Middleware
-5. Auth Middleware → Nexus Dashboard API
-6. Nexus Dashboard → Response
+5. Auth Middleware → FMC REST API
+6. FMC → Response
 7. MCP Server → Audit Logger (log with request body)
 8. MCP Server → Claude Desktop (return result)
 ```
@@ -115,7 +116,7 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 3. **Data Layer**: Encrypted credentials at rest
 4. **Audit Layer**: Complete operation logging
 
-### Authentication Flow
+### FMC Authentication Flow
 
 ```
 ┌─────────────┐
@@ -134,23 +135,27 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 └──────┬──────────────┘
        │
        ▼
-┌──────────────────────┐
-│ Nexus API Client     │
-│ POST /login          │
-│ (Basic Auth)         │
-└──────┬───────────────┘
+┌──────────────────────────────────────┐
+│ FMC API Client                       │
+│ POST /api/fmc_platform/v1/auth/      │
+│      generatetoken  (Basic Auth)     │
+└──────┬───────────────────────────────┘
        │
        ▼
-┌──────────────────────┐
-│ Nexus Dashboard      │
-│ Returns cookies      │
-└──────┬───────────────┘
+┌──────────────────────────────────────┐
+│ FMC returns response headers:        │
+│  X-auth-access-token                 │
+│  X-auth-refresh-token                │
+│  DOMAIN_UUID  ← used in API paths   │
+│  global_DOMAIN_UUID                  │
+└──────┬───────────────────────────────┘
        │
        ▼
-┌──────────────────────┐
-│ Cache session        │
-│ Use for all requests │
-└──────────────────────┘
+┌──────────────────────────────────────┐
+│ Cache tokens                         │
+│ Use X-auth-access-token header       │
+│ for all subsequent requests          │
+└──────────────────────────────────────┘
 ```
 
 ### Encryption
@@ -161,7 +166,7 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 - Scope: Passwords in `clusters` table
 
 **In Transit**:
-- HTTPS for Nexus Dashboard communication
+- HTTPS for FMC communication
 - Option to disable SSL verification for dev/test
 
 ## Database Schema
@@ -224,47 +229,58 @@ The Nexus Dashboard MCP Server is built with a modular, layered architecture des
 ### From OpenAPI to MCP Tool
 
 ```python
-# OpenAPI Operation
+# FMC OpenAPI Operation
 {
   "get": {
-    "operationId": "getFabrics",
-    "summary": "Get list of fabrics",
+    "operationId": "getAllNetworkObjects",
+    "summary": "Get all network objects",
     "parameters": [
+      {"name": "domainUUID", "in": "path", "required": true},
       {"name": "limit", "in": "query", "schema": {"type": "integer"}}
-    ],
-    "responses": {
-      "200": {"description": "Success"}
-    }
+    ]
   }
 }
 
 # Generated MCP Tool
 Tool(
-  name="manage_getFabrics",
-  description="GET /api/v1/fabrics - Get list of fabrics",
+  name="fmc_getAllNetworkObjects",
+  description="Get all network objects\nEndpoint: GET /api/fmc_config/v1/domain/{domainUUID}/object/networks\nAPI: Fmc",
   inputSchema={
     "type": "object",
     "properties": {
-      "limit": {"type": "integer", "description": "Query parameter"}
-    }
-  },
-  fn=async_execute_function
+      "domainUUID": {"type": "string", "description": "Path parameter: domainUUID"},
+      "limit": {"type": "integer", "description": "Query parameter: limit"}
+    },
+    "required": ["domainUUID"]
+  }
 )
 ```
 
+## FMC API Structure
+
+The FMC REST API is split into two roots, both covered by `fmc_oas3.json`:
+
+| Root | Purpose | Example paths |
+|------|---------|---------------|
+| `/api/fmc_config/v1/domain/{domainUUID}/...` | Configuration objects, policy, devices | `/object/networks`, `/policy/accesspolicies`, `/devices/devicerecords` |
+| `/api/fmc_platform/v1/...` | Authentication, system info, HA, licensing | `/auth/generatetoken`, `/info/serverversion` |
+
+Most operations require `domainUUID` as a path parameter. The correct UUID is returned in the `DOMAIN_UUID` response header when generating an auth token.
+
 ## Extension Points
 
-### Adding New APIs
+### Adding Custom Guidance
 
-1. Place OpenAPI spec in `openapi_specs/`
-2. Update `api_loader.py` to include new spec
-3. Create load method in `mcp_server.py`:
+1. Use the Web UI Guidance section, or
+2. Use the `GuidanceService` API:
    ```python
-   async def load_new_api(self):
-       spec = self.api_loader.load_openapi_spec("new_api.json")
-       await self._create_tools_from_spec("new_api", spec)
+   await service.upsert_api_guidance(
+       api_name="fmc",
+       display_name="Cisco FMC API",
+       general_guidance="Always retrieve domainUUID before making config calls",
+       is_active=True
+   )
    ```
-4. Call from `run()` method
 
 ### Custom Middleware
 
@@ -272,11 +288,9 @@ Implement middleware interface:
 ```python
 class CustomMiddleware:
     async def before_request(self, method, path, params, body):
-        # Pre-processing
         pass
 
     async def after_request(self, response):
-        # Post-processing
         pass
 ```
 
@@ -293,23 +307,17 @@ class CustomMiddleware:
 - Connection reuse via httpx AsyncClient
 - Configurable timeout (default 30s)
 - Retry logic (max 3 attempts)
-
-### Caching (Future)
-
-Planned for Phase 4:
-- Redis for response caching
-- Token caching with TTL
-- Cluster configuration caching
+- Automatic token refresh on 401
 
 ## Scalability
 
-### Current (Phase 1)
+### Current
 
 - Single MCP server instance
 - Single PostgreSQL instance
 - Suitable for: Development, small teams
 
-### Future (Phase 4+)
+### Future
 
 - Multiple MCP server instances (horizontal scaling)
 - PostgreSQL replication
@@ -335,13 +343,11 @@ Claude Desktop (user-friendly message)
 
 ### Error Categories
 
-1. **Authentication Errors**: 401, credential issues
+1. **Authentication Errors**: 401, token expired, credential issues
 2. **Permission Errors**: Edit mode required
-3. **Validation Errors**: Invalid parameters
-4. **API Errors**: Nexus Dashboard errors (4xx, 5xx)
+3. **Validation Errors**: Invalid parameters, missing domainUUID
+4. **API Errors**: FMC errors (4xx, 5xx)
 5. **System Errors**: Database, network failures
-
-Each category has specific handling and user messaging.
 
 ## Logging Strategy
 
@@ -349,7 +355,7 @@ Each category has specific handling and user messaging.
 
 - **DEBUG**: Detailed trace for development
 - **INFO**: Normal operations, successful requests
-- **WARNING**: Degraded state, retries
+- **WARNING**: Degraded state, retries, token refreshes
 - **ERROR**: Failures that don't stop execution
 - **CRITICAL**: Fatal errors requiring intervention
 
@@ -371,10 +377,10 @@ Each category has specific handling and user messaging.
 
 - Multi-component workflows
 - Real database (test DB)
-- Mocked Nexus Dashboard API
+- Mocked FMC API
 
 ### E2E Tests (Future)
 
 - Full stack testing
-- Real Nexus Dashboard (sandbox/dev)
+- Real FMC (sandbox/dev)
 - User workflow validation

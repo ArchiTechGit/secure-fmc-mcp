@@ -1,56 +1,59 @@
-# Nexus Dashboard API Path Reference
+# FMC API Path Reference
 
 ## API Base Paths
 
-### Manage API
-**Base Path**: `/api/v1/manage`
-**Server URL**: `https://{cluster}/api/v1/manage`
+The Cisco FMC REST API uses two base path roots:
+
+### Configuration API (`fmc_config`)
+**Base Path**: `/api/fmc_config/v1/domain/{domainUUID}`
+
+Most operations use this root. The `domainUUID` path parameter identifies the administrative domain (returned as the `DOMAIN_UUID` header when generating an auth token).
 
 **Example Endpoints**:
-- List Fabrics: `GET /api/v1/manage/fabrics`
-- Get Fabric: `GET /api/v1/manage/fabrics/{fabricId}`
-- List Anomalies: `GET /api/v1/manage/anomalyRules/complianceRules`
+- List Network Objects: `GET /api/fmc_config/v1/domain/{domainUUID}/object/networks`
+- Get Access Policy: `GET /api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies/{objectId}`
+- List Devices: `GET /api/fmc_config/v1/domain/{domainUUID}/devices/devicerecords`
+- Deploy Changes: `POST /api/fmc_config/v1/domain/{domainUUID}/deployment/deploymentrequests`
 
-### Analyze API (Phase 2)
-**Base Path**: `/api/v1/analyze`
-**Server URL**: `https://{cluster}/api/v1/analyze`
+### Platform API (`fmc_platform`)
+**Base Path**: `/api/fmc_platform/v1`
 
-### Infrastructure API (Phase 2)
-**Base Path**: `/api/v1/infra`
-**Server URL**: `https://{cluster}/api/v1/infra`
+Used for authentication and platform-level operations (no domainUUID required).
 
-### OneManage API (Phase 2)
-**Base Path**: `/api/v1/one-manage`
-**Server URL**: `https://{cluster}/api/v1/one-manage`
+**Example Endpoints**:
+- Generate Token: `POST /api/fmc_platform/v1/auth/generatetoken`
+- Refresh Token: `POST /api/fmc_platform/v1/auth/refreshtoken`
+- Server Version: `GET /api/fmc_platform/v1/info/serverversion`
+- Available Domains: `GET /api/fmc_platform/v1/info/domain`
 
-### Orchestrator API (Phase 2)
-**Base Path**: TBD
-**Server URL**: TBD
+## FMC OpenAPI Specification
 
-## OpenAPI Specification Structure
-
-### How Paths are Defined
-
-In the OpenAPI spec (`nexus_dashboard_manage.json`):
+The FMC spec (`fmc_oas3.json`) defines paths that are already fully qualified — they include the complete path from `/api/...` onward. This means the MCP auth middleware passes paths through directly without prepending a base path.
 
 ```json
 {
-  "openapi": "3.0.3",
+  "openapi": "3.0.0",
   "servers": [
     {
-      "url": "https://{cluster}/api/v1/manage",
+      "url": "https://{fmc_host}",
       "variables": {
-        "cluster": {
-          "default": "example.com"
+        "fmc_host": {
+          "default": "192.168.1.1"
         }
       }
     }
   ],
   "paths": {
-    "/fabrics": {
+    "/api/fmc_config/v1/domain/{domainUUID}/object/networks": {
       "get": {
-        "operationId": "listFabrics",
-        ...
+        "operationId": "getAllNetworkObjects",
+        "summary": "Get all network objects",
+        "parameters": [
+          {"name": "domainUUID", "in": "path", "required": true},
+          {"name": "limit", "in": "query"},
+          {"name": "offset", "in": "query"},
+          {"name": "filter", "in": "query"}
+        ]
       }
     }
   }
@@ -58,56 +61,55 @@ In the OpenAPI spec (`nexus_dashboard_manage.json`):
 ```
 
 **Key Points**:
-- The `servers[0].url` contains the full base path: `https://{cluster}/api/v1/manage`
-- The `paths` object contains relative paths like `/fabrics`
-- Full URL is: `servers[0].url + paths.key` = `https://{cluster}/api/v1/manage/fabrics`
+- Paths in the spec are already complete (e.g., `/api/fmc_config/v1/domain/{domainUUID}/object/networks`)
+- `domainUUID` is a required path parameter for all `fmc_config` operations
+- The FMC host is the `base_url` stored in the device credentials
 
 ## Implementation in MCP Server
 
 ### Path Construction Flow
 
 1. **API Loader** (`src/core/api_loader.py`):
-   - Reads OpenAPI spec
-   - Extracts paths from `paths` object (e.g., `/fabrics`)
-   - Does NOT include the base path from `servers[0].url`
+   - Reads `fmc_oas3.json`
+   - Extracts fully qualified paths (e.g., `/api/fmc_config/v1/domain/{domainUUID}/object/networks`)
+   - Identifies path parameters like `{domainUUID}`, `{objectId}`, etc.
 
 2. **MCP Server** (`src/core/mcp_server.py`):
-   - Gets operation with path `/fabrics`
-   - Passes it to AuthMiddleware
+   - Builds a tool with `domainUUID` as a required input
+   - Substitutes `{domainUUID}` before sending the request
 
 3. **Auth Middleware** (`src/middleware/auth.py`):
-   - **CRITICAL**: Prepends `/api/v1/manage` to the path
-   - Code:
-     ```python
-     if not path.startswith("/api/"):
-         path = f"/api/v1/manage{path}"
-     ```
-   - Final path: `/api/v1/manage/fabrics`
+   - FMC paths are already fully qualified — no prefix is added
+   - Passes path directly to `FMCAPIClient`
 
-4. **Nexus API Client** (`src/services/nexus_api.py`):
-   - Receives full path: `/api/v1/manage/fabrics`
-   - Joins with base_url: `https://nexus-dashboard.example.com`
-   - Final URL: `https://nexus-dashboard.example.com/api/v1/manage/fabrics`
+4. **FMC API Client** (`src/services/fmc_api.py`):
+   - Receives full path: `/api/fmc_config/v1/domain/{domainUUID}/object/networks`
+   - Joins with base_url: `https://192.168.1.1`
+   - Final URL: `https://192.168.1.1/api/fmc_config/v1/domain/{domainUUID}/object/networks`
 
 ## Authentication Endpoints
 
-### Login
-**Endpoint**: `POST /login`
-**Full URL**: `https://{cluster}/login`
+### Generate Token
+**Endpoint**: `POST /api/fmc_platform/v1/auth/generatetoken`
+**Auth**: HTTP Basic (username:password)
 
-**Note**: Login endpoint is NOT under `/api/v1/manage`. It's a top-level endpoint.
-
-**Request Body**:
-```json
-{
-  "username": "admin",
-  "password": "password"
-}
+**Response Headers**:
+```
+X-auth-access-token: <token>
+X-auth-refresh-token: <refresh-token>
+DOMAIN_UUID: <default-domain-uuid>
+global_DOMAIN_UUID: <global-domain-uuid>
 ```
 
-**Response**:
-- Sets session cookies
-- May return token in response body
+The `DOMAIN_UUID` header value is what you use as `domainUUID` in all `fmc_config` paths.
+
+### Refresh Token
+**Endpoint**: `POST /api/fmc_platform/v1/auth/refreshtoken`
+**Headers**: `X-auth-access-token`, `X-auth-refresh-token`
+
+### Revoke Token
+**Endpoint**: `DELETE /api/fmc_platform/v1/auth/revokeaccess`
+**Headers**: `X-auth-access-token`
 
 ## Common Issues and Solutions
 
@@ -116,21 +118,19 @@ In the OpenAPI spec (`nexus_dashboard_manage.json`):
 **Symptom**: API returns 404 when calling endpoints
 
 **Possible Causes**:
-1. Missing base path (`/api/v1/manage`)
-2. Wrong API version
-3. Service not running
-4. Incorrect cluster URL
+1. Wrong `domainUUID` — use the UUID returned in `DOMAIN_UUID` header at login
+2. Wrong FMC version — some endpoints differ between 6.x and 7.x
+3. Service not running or feature not licensed
 
 **Debugging Steps**:
 ```bash
-# Check what URL is being called
-docker-compose logs mcp-server | grep "API request"
+# Verify FMC is reachable and get token
+curl -k -X POST https://YOUR_FMC_IP/api/fmc_platform/v1/auth/generatetoken \
+  -u admin:password -v 2>&1 | grep -i "domain_uuid\|access-token\|< HTTP"
 
-# Test endpoint manually
-curl -k https://nexus-dashboard.example.com/api/v1/manage/fabrics
-
-# Verify cluster is accessible
-curl -k https://nexus-dashboard.example.com
+# Test config endpoint with domain UUID
+curl -k https://YOUR_FMC_IP/api/fmc_config/v1/domain/YOUR_DOMAIN_UUID/object/networks \
+  -H "X-auth-access-token: YOUR_TOKEN"
 ```
 
 ### Issue: 401 Unauthorized
@@ -138,87 +138,59 @@ curl -k https://nexus-dashboard.example.com
 **Symptom**: API returns 401
 
 **Possible Causes**:
-1. Authentication failed
-2. Session expired
-3. Invalid credentials
+1. Token expired (FMC tokens have a 30-minute lifetime)
+2. Invalid credentials
+3. User lacks REST API access rights in FMC
 
-**Solution**: Check authentication in AuthMiddleware
+**Solution**: `FMCAPIClient` automatically refreshes tokens on 401. If repeated failures occur, check user permissions in FMC under System > Users.
 
-### Issue: Wrong Base Path
+### Issue: 422 Unprocessable Entity
 
-**Symptom**: Calls going to wrong API (e.g., Analyze instead of Manage)
+**Symptom**: Write operation fails with 422
 
-**Solution**: Verify the base path logic in `src/middleware/auth.py`
+**Possible Cause**: Request body schema mismatch. Use the FMC API Explorer (built into FMC UI at `/api/api-explorer`) to validate the expected schema.
 
 ## Testing API Paths
 
 ### Manual Testing
 
 ```bash
-# 1. Get authentication token
-curl -k -X POST https://nexus-dashboard.example.com/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"Davinci!!02"}' \
-  -c cookies.txt
+# Step 1: Authenticate and capture domainUUID
+RESPONSE=$(curl -k -s -D - -X POST \
+  https://YOUR_FMC_IP/api/fmc_platform/v1/auth/generatetoken \
+  -u admin:password)
 
-# 2. Test Manage API endpoint
-curl -k -X GET https://nexus-dashboard.example.com/api/v1/manage/fabrics \
-  -b cookies.txt
+TOKEN=$(echo "$RESPONSE" | grep -i "x-auth-access-token:" | awk '{print $2}' | tr -d '\r')
+DOMAIN=$(echo "$RESPONSE" | grep -i "^domain_uuid:" | awk '{print $2}' | tr -d '\r')
 
-# 3. Test with specific fabric
-curl -k -X GET https://nexus-dashboard.example.com/api/v1/manage/fabrics/{fabricId} \
-  -b cookies.txt
+# Step 2: List network objects
+curl -k "https://YOUR_FMC_IP/api/fmc_config/v1/domain/${DOMAIN}/object/networks" \
+  -H "X-auth-access-token: ${TOKEN}"
+
+# Step 3: List access control policies
+curl -k "https://YOUR_FMC_IP/api/fmc_config/v1/domain/${DOMAIN}/policy/accesspolicies" \
+  -H "X-auth-access-token: ${TOKEN}"
+
+# Step 4: List managed devices
+curl -k "https://YOUR_FMC_IP/api/fmc_config/v1/domain/${DOMAIN}/devices/devicerecords" \
+  -H "X-auth-access-token: ${TOKEN}"
 ```
 
-### Automated Testing
+### FMC API Explorer
 
-See `src/services/nexus_api.py` for the `NexusAPIClient` class that handles:
-- Authentication with cookies
-- Automatic retry on 401
-- Session management
-- Path construction
-
-## Multi-API Support (Phase 2)
-
-When adding support for multiple APIs, the path construction logic needs to be updated:
-
-### Current (Phase 1 - Manage API Only):
-```python
-# In src/middleware/auth.py
-if not path.startswith("/api/"):
-    path = f"/api/v1/manage{path}"
+Cisco FMC includes a built-in Swagger UI at:
 ```
-
-### Future (Phase 2 - Multi-API):
-```python
-# In src/middleware/auth.py
-async def execute_request(
-    self,
-    method: str,
-    path: str,
-    api_name: str = "manage",  # New parameter
-    ...
-):
-    # Map API names to base paths
-    api_base_paths = {
-        "manage": "/api/v1/manage",
-        "analyze": "/api/v1/analyze",
-        "infra": "/api/v1/infra",
-        "one-manage": "/api/v1/one-manage",
-    }
-
-    if not path.startswith("/api/"):
-        base_path = api_base_paths.get(api_name, "/api/v1/manage")
-        path = f"{base_path}{path}"
+https://YOUR_FMC_IP/api/api-explorer
 ```
+Use this to explore and test all available endpoints directly from your browser.
 
 ## References
 
-- Nexus Dashboard API Documentation: https://developer.cisco.com/docs/nexus-dashboard/
-- OpenAPI 3.0 Specification: https://swagger.io/specification/
-- Nexus Dashboard Manage API OpenAPI: `openapi_specs/nexus_dashboard_manage.json`
+- **FMC REST API Quick Start Guide**: [Cisco Documentation](https://www.cisco.com/c/en/us/td/docs/security/firepower/770/API/REST/secure_firewall_management_center_rest_api_quick_start_guide_770/Objects_In_The_REST_API.html)
+- **FMC API Explorer**: `https://YOUR_FMC_IP/api/api-explorer`
+- **OpenAPI Spec**: `openapi_specs/fmc_oas3.json`
 
 ---
 
-**Last Updated**: November 23, 2025
-**Status**: Active documentation for Phase 1 implementation
+**Last Updated**: April 2026
+**Status**: Active documentation

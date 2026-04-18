@@ -1,6 +1,6 @@
 # Multi-User Role-Based Access Control (RBAC)
 
-This document describes the multi-user authentication and authorization system for Nexus Dashboard MCP Server.
+This document describes the multi-user authentication and authorization system for the Cisco FMC MCP Server.
 
 ## Architecture Overview
 
@@ -123,12 +123,11 @@ Each user has a unique API token stored in `users.api_token`. Configure Claude D
 ```json
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
-        "http://<server>:8002/mcp/sse",
-        "--allow-http",
+        "https://<server>:8444/mcp/sse",
         "--transport", "sse-only",
         "--header", "Authorization: Bearer <USER_API_TOKEN>"
       ]
@@ -194,19 +193,19 @@ When a user connects via Claude Desktop:
 │                    MCP Tool Filtering                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  All Tools (638+)                                               │
+│  All Tools (1331+)                                              │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ manage_createVlan, manage_updateVlan, manage_deleteVlan, │   │
-│  │ analyze_getInsights, infra_deployPolicy, ...             │   │
+│  │ fmc_createNetworkObjects, fmc_createAccessPolicy,        │   │
+│  │ fmc_getAllDevices, fmc_createDeploymentRequest, ...      │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                              │                                  │
-│                              │ User: network_operator           │
+│                              │ User: fw_operator                │
 │                              │ Roles: [Network Operator]        │
-│                              │ Allowed: [manage_*, analyze_*]   │
+│                              │ Allowed: [fmc_get*, fmc_list*]   │
 │                              ▼                                  │
 │  Filtered Tools                                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ manage_createVlan, manage_updateVlan, analyze_getInsights│   │
+│  │ fmc_getAllNetworkObjects, fmc_getAllAccessPolicies, ...   │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -234,7 +233,7 @@ When a user connects via Claude Desktop:
 
 ## Cluster Access Control
 
-The system enforces cluster-level access control in addition to operation-level permissions. Users can only interact with Nexus Dashboard clusters they are explicitly assigned to.
+The system enforces device-level access control in addition to operation-level permissions. Users can only interact with Cisco FMC devices they are explicitly assigned to.
 
 ### Cluster Assignment Model
 
@@ -245,14 +244,15 @@ The system enforces cluster-level access control in addition to operation-level 
 │                                                                 │
 │  User attempts to execute MCP tool                              │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ tools/call { name: "manage_getVlans",                    │   │
-│  │              arguments: { cluster: "prod-nexus" } }      │   │
+│  │ tools/call { name: "fmc_getAllNetworkObjects",            │   │
+│  │              arguments: { domainUUID: "...",              │   │
+│  │                           cluster: "prod-fmc" } }        │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                              │                                  │
 │                              ▼                                  │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │              Step 1: Operation Permission Check          │   │
-│  │  Does user have "manage_getVlans" in their roles?        │   │
+│  │  Does user have "fmc_getAllNetworkObjects" in their roles?│   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                              │                                  │
 │                              ▼                                  │
@@ -267,7 +267,7 @@ The system enforces cluster-level access control in addition to operation-level 
 │                              ▼                                  │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │              Step 3: Execute Tool                        │   │
-│  │  Forward request to Nexus Dashboard cluster              │   │
+│  │  Forward request to Cisco FMC device                    │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -297,7 +297,7 @@ When cluster access is denied, users receive:
 {
   "error": {
     "code": -32600,
-    "message": "Cluster access denied for user 'john.doe': Access denied to cluster 'prod-nexus'"
+    "message": "Cluster access denied for user 'john.doe': Access denied to cluster 'prod-fmc'"
   }
 }
 ```
@@ -338,9 +338,9 @@ Response:
     "id": 5,
     "username": "network_operator",
     "clusters": [
-      {"id": 1, "name": "prod-nexus"},
-      {"id": 2, "name": "dev-nexus"},
-      {"id": 3, "name": "test-nexus"}
+      {"id": 1, "name": "prod-fmc"},
+      {"id": 2, "name": "dev-fmc"},
+      {"id": 3, "name": "test-fmc"}
     ]
   }
 }
