@@ -10,13 +10,13 @@ export default function Footer() {
               Designed by <span className="text-white font-medium">Chris</span> | Developed with <span className="text-white font-medium">Claude</span>
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Nexus Dashboard MCP Server v2.1.0
+              Cisco FMC MCP Server v2.1.0
             </p>
           </div>
 
           <div className="flex items-center space-x-6">
             <a
-              href="https://github.com/beye91/nexus-dashboard-mcp"
+              href="https://github.com/ArchiTechGit/secure-fmc-mcp"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center text-gray-300 hover:text-white transition-colors"

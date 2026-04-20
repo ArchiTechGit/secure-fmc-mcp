@@ -1,11 +1,11 @@
 {
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "docker",
       "args": [
         "exec",
         "-i",
-        "nd_mcp_mcp_server",
+        "fmc_mcp_mcp_server",
         "python",
         "src/main.py"
       ]

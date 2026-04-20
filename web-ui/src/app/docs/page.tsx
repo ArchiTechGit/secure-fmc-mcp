@@ -39,7 +39,7 @@ export default function DocsPage() {
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Documentation</h2>
           <p className="text-gray-600">
-            Complete user guide for the Nexus Dashboard MCP Server
+            Complete user guide for the Cisco FMC MCP Server
           </p>
         </div>
 

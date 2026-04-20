@@ -236,9 +236,9 @@ To use your own certificates:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXUS_CLUSTER_URL` | (none) | Default cluster URL |
-| `NEXUS_USERNAME` | `admin` | Default username |
-| `NEXUS_PASSWORD` | (none) | Default password |
+| `FMC_HOST_URL` | (none) | Default FMC device URL |
+| `FMC_USERNAME` | `admin` | Default username |
+| `FMC_PASSWORD` | (none) | Default password |
 
 ### Logging
 

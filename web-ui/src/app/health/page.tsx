@@ -257,7 +257,7 @@ export default function HealthPage() {
                 <div className="flex-1">
                   <h4 className="text-lg font-semibold text-blue-900 mb-2">Need Help?</h4>
                   <p className="text-sm text-blue-800 mb-3">
-                    Learn more about the Nexus Dashboard MCP Server, its components, and how to use it effectively.
+                    Learn more about the Cisco FMC MCP Server, its components, and how to use it effectively.
                   </p>
                   <Link
                     href="/docs"

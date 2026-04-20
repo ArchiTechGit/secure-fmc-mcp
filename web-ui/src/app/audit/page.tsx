@@ -145,7 +145,7 @@ export default function AuditPage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Audit Logs</h2>
             <p className="text-gray-600">
-              View and export operation history across all Nexus Dashboard clusters
+              View and export operation history across all FMC devices
             </p>
           </div>
           <button

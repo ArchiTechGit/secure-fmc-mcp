@@ -338,8 +338,8 @@ This roadmap outlines the development plan for the Cisco FMC MCP Server from ini
 
 ## Version Strategy
 
-- **v1.0.0**: Phase 1 complete (Manage API)
-- **v1.1.0**: Phase 2 complete (All APIs)
+- **v1.0.0**: Phase 1 complete (FMC API)
+- **v1.1.0**: Phase 2 complete (Multi-domain support)
 - **v1.2.0**: Phase 3 complete (Web UI)
 - **v1.3.0**: Phase 4 complete (Production hardening)
 - **v2.0.0**: Phase 6+ (Breaking changes, new architecture)
@@ -367,7 +367,7 @@ This roadmap outlines the development plan for the Cisco FMC MCP Server from ini
 | 2025-01-23 | Basic Auth over OAuth2 | Simpler, faster Phase 1 implementation |
 | 2025-01-23 | Environment variable security | Simplest approach for Phase 1 |
 | 2025-01-23 | PostgreSQL over file config | ACID compliance, better audit logging |
-| 2025-01-23 | Manage API only in Phase 1 | Fastest path to working prototype |
+| 2025-01-23 | FMC API only in Phase 1 | Fastest path to working prototype |
 
 ## Changelog
 

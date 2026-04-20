@@ -91,7 +91,7 @@ class RoleOperation(Base):
 
     id = Column(Integer, primary_key=True)
     role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False, index=True)
-    operation_name = Column(String(255), nullable=False, index=True)  # e.g., "manage_createVlan"
+    operation_name = Column(String(255), nullable=False, index=True)  # e.g., "fmc_getAllNetworkObjects"
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     # Relationships

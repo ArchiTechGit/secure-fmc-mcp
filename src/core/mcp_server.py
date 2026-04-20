@@ -413,6 +413,3 @@ class FMCMCPServer:
         self._auth_middleware_cache.clear()
         logger.info("Cleanup completed")
 
-
-# Backwards-compatible alias
-NexusDashboardMCP = FMCMCPServer

@@ -794,7 +794,7 @@ export default function SecurityPage() {
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">Global Edit Mode</h3>
                       <p className="text-sm text-gray-600">
-                        Enable or disable write operations on Nexus Dashboard clusters globally.
+                        Enable or disable write operations on FMC devices globally.
                         This affects users without specific role-based edit permissions.
                       </p>
                       <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -805,7 +805,7 @@ export default function SecurityPage() {
                           <div>
                             <p className="text-sm font-medium text-yellow-800">Warning</p>
                             <p className="text-sm text-yellow-700 mt-1">
-                              Enabling edit mode allows write operations that can modify your Nexus Dashboard configuration.
+                              Enabling edit mode allows write operations that can modify your FMC configuration.
                             </p>
                           </div>
                         </div>
