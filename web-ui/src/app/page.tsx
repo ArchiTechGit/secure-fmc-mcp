@@ -288,7 +288,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="font-medium">Total Operations:</span>
-                  <span>{stats?.total_operations || 1331}</span>
+                  <span>{stats?.total_operations || 0}</span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="font-medium">Status:</span>

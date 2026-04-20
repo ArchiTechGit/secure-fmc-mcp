@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.database import get_db
 from src.config.settings import get_settings
+from src.models.api_endpoint import APIEndpoint
 from src.models.audit import AuditLog
 from src.models.cluster import Cluster
 from src.models.security import SecurityConfig
@@ -763,6 +764,12 @@ async def get_stats():
         )
         audit_logs_count = audit_count.scalar() or 0
 
+        # Count registered API operations
+        ops_count = await session.execute(
+            select(func.count()).select_from(APIEndpoint)
+        )
+        total_operations = ops_count.scalar() or 0
+
         # Get security config
         security_result = await session.execute(
             select(SecurityConfig).limit(1)
@@ -771,7 +778,7 @@ async def get_stats():
         edit_mode = security_config.edit_mode_enabled if security_config else False
 
     return {
-        "total_operations": 638,  # Known from multi-API implementation
+        "total_operations": total_operations,
         "clusters_configured": clusters_configured,
         "audit_logs_count": audit_logs_count,
         "edit_mode_enabled": edit_mode,
