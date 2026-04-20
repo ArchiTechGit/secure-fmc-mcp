@@ -64,7 +64,7 @@ export default function LoginPage() {
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
-            Nexus Dashboard MCP
+            Cisco FMC MCP
           </h1>
           <p className="text-gray-400">
             {setupMode ? 'Create Admin Account' : 'Sign in to continue'}
@@ -159,7 +159,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-gray-500 text-sm">
-          Nexus Dashboard MCP Server
+          Cisco FMC MCP Server
         </p>
       </div>
     </div>

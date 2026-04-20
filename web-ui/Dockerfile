@@ -50,18 +50,18 @@ COPY --chown=nextjs:nodejs https-server.js ./
 USER nextjs
 
 # Default to HTTPS port
-EXPOSE 7443
+EXPOSE 7445
 
 # Environment defaults
-ENV PORT=7443
-ENV INTERNAL_PORT=7100
+ENV PORT=7445
+ENV INTERNAL_PORT=7102
 ENV HOSTNAME="0.0.0.0"
 ENV SSL_ENABLED=true
 ENV SSL_CERTFILE=/app/certs/server.crt
 ENV SSL_KEYFILE=/app/certs/server.key
 
 # BACKEND_API_URL for API proxying (HTTPS internal Docker network)
-ENV BACKEND_API_URL=http://nd_mcp_web_api:7100
+ENV BACKEND_API_URL=http://fmc_mcp_web_api:7102
 
 # Allow self-signed certificates for internal communication
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0

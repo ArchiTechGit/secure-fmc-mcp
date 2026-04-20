@@ -98,7 +98,7 @@ export default function HomePage() {
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h2>
           <p className="text-gray-600">
-            Manage Nexus Dashboard clusters, security settings, and view audit logs
+            Manage Cisco FMC device connections, security settings, and view audit logs
           </p>
         </div>
 
@@ -128,7 +128,7 @@ export default function HomePage() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Clusters</p>
+                  <p className="text-sm font-medium text-gray-600">FMC Devices</p>
                   <p className="text-3xl font-bold text-gray-900 mt-2">
                     {stats?.clusters_configured || 0}
                   </p>
@@ -239,9 +239,9 @@ export default function HomePage() {
                 href="/clusters"
                 className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
               >
-                <h4 className="font-medium text-gray-900">Manage Clusters</h4>
+                <h4 className="font-medium text-gray-900">Manage FMC Devices</h4>
                 <p className="text-sm text-gray-600 mt-1">
-                  Add, edit, or remove Nexus Dashboard cluster connections
+                  Add, edit, or remove Cisco FMC device connections
                 </p>
               </Link>
               <Link
@@ -278,17 +278,17 @@ export default function HomePage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">About</h3>
             <div className="space-y-3 text-sm text-gray-600">
               <p>
-                The Nexus Dashboard MCP Server provides an AI-powered interface to Cisco Nexus Dashboard
-                through the Model Context Protocol.
+                The Cisco FMC MCP Server provides an AI-powered interface to Cisco Secure Firewall
+                Management Center through the Model Context Protocol.
               </p>
               <div className="border-t pt-3">
                 <div className="flex justify-between py-2">
-                  <span className="font-medium">APIs Loaded:</span>
-                  <span>4 (Manage, Analyze, Infra, OneManage)</span>
+                  <span className="font-medium">API:</span>
+                  <span>Cisco FMC REST API</span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="font-medium">Total Operations:</span>
-                  <span>{stats?.total_operations || 638}</span>
+                  <span>{stats?.total_operations || 1331}</span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="font-medium">Status:</span>

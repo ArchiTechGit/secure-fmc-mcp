@@ -1211,11 +1211,11 @@ export default function SecurityPage() {
                 <pre className="text-xs bg-gray-900 text-green-400 p-3 rounded overflow-x-auto">
 {`{
   "mcpServers": {
-    "nexus-dashboard": {
+    "cisco-fmc": {
       "command": "npx",
       "args": [
         "mcp-remote@latest",
-        "https://${typeof window !== 'undefined' ? window.location.hostname : 'YOUR_SERVER_IP'}:8444/mcp/sse",
+        "https://${typeof window !== 'undefined' ? window.location.hostname : 'YOUR_SERVER_IP'}:8446/mcp/sse",
         "--transport",
         "sse-only",
         "--header",

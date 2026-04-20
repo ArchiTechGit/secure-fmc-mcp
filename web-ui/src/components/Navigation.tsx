@@ -10,7 +10,7 @@ export default function Navigation() {
 
   const navItems = [
     { href: '/', label: 'Dashboard' },
-    { href: '/clusters', label: 'Clusters' },
+    { href: '/clusters', label: 'FMC Devices' },
     { href: '/security', label: 'Security' },
     { href: '/tool-profiles', label: 'Tool Profiles' },
     { href: '/audit', label: 'Audit Logs' },
@@ -25,7 +25,7 @@ export default function Navigation() {
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
             <Link href="/" className="text-xl font-bold text-gray-900 hover:text-gray-700">
-              Nexus Dashboard MCP Server
+              Cisco FMC MCP Server
             </Link>
           </div>
           <div className="flex items-center space-x-1">

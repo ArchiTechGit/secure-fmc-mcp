@@ -89,7 +89,7 @@ export default function ClustersPage() {
   }
 
   async function handleDelete(clusterName: string) {
-    if (!confirm(`Are you sure you want to delete cluster "${clusterName}"?`)) {
+    if (!confirm(`Are you sure you want to delete device "${clusterName}"?`)) {
       return;
     }
 
@@ -141,16 +141,16 @@ export default function ClustersPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8 flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Cluster Management</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">FMC Device Management</h2>
             <p className="text-gray-600">
-              Manage Nexus Dashboard cluster connections and credentials
+              Manage Cisco FMC device connections and credentials
             </p>
           </div>
           <button
             onClick={openAddModal}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-medium"
           >
-            Add New Cluster
+            Add New Device
           </button>
         </div>
 
@@ -163,7 +163,7 @@ export default function ClustersPage() {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-            <p className="mt-2 text-gray-600">Loading clusters...</p>
+            <p className="mt-2 text-gray-600">Loading devices...</p>
           </div>
         ) : clusters.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -180,13 +180,13 @@ export default function ClustersPage() {
                 d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
               />
             </svg>
-            <h3 className="mt-2 text-lg font-medium text-gray-900">No clusters configured</h3>
-            <p className="mt-1 text-gray-500">Get started by adding a new cluster connection.</p>
+            <h3 className="mt-2 text-lg font-medium text-gray-900">No FMC devices configured</h3>
+            <p className="mt-1 text-gray-500">Get started by adding a Cisco FMC device connection.</p>
             <button
               onClick={openAddModal}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
-              Add Your First Cluster
+              Add Your First Device
             </button>
           </div>
         ) : (
@@ -275,7 +275,7 @@ export default function ClustersPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {editingCluster ? 'Edit Cluster' : 'Add New Cluster'}
+              {editingCluster ? 'Edit Device' : 'Add New Device'}
             </h3>
 
             {error && (
@@ -288,7 +288,7 @@ export default function ClustersPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cluster Name
+                    Device Name
                   </label>
                   <input
                     type="text"
@@ -297,10 +297,10 @@ export default function ClustersPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 text-gray-900 placeholder:text-gray-400"
-                    placeholder="my-nexus-cluster"
+                    placeholder="prod-fmc"
                   />
                   {editingCluster && (
-                    <p className="mt-1 text-xs text-gray-500">Cluster name cannot be changed</p>
+                    <p className="mt-1 text-xs text-gray-500">Device name cannot be changed</p>
                   )}
                 </div>
 
@@ -314,7 +314,7 @@ export default function ClustersPage() {
                     value={formData.url}
                     onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder:text-gray-400"
-                    placeholder="https://nexus-dashboard.example.com"
+                    placeholder="https://192.168.1.1"
                   />
                 </div>
 
@@ -377,7 +377,7 @@ export default function ClustersPage() {
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
                 >
-                  {editingCluster ? 'Update Cluster' : 'Add Cluster'}
+                  {editingCluster ? 'Update Device' : 'Add Device'}
                 </button>
               </div>
             </form>

@@ -101,7 +101,7 @@ export default function ApiGuidancePage() {
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">API Guidance</h2>
           <p className="text-gray-600">
-            Configure when Claude should use each Nexus Dashboard API
+            Configure when Claude should use the Cisco FMC API
           </p>
         </div>
 

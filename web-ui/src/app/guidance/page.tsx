@@ -8,7 +8,7 @@ export default function GuidanceDashboard() {
     {
       href: '/guidance/apis',
       title: 'API Guidance',
-      description: 'Configure when to use each API (Manage, Analyze, Infra, OneManage)',
+      description: 'Configure when to use the Cisco FMC API',
       icon: (
         <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -92,7 +92,7 @@ export default function GuidanceDashboard() {
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">API Guidance System</h2>
           <p className="text-gray-600">
-            Configure how Claude interacts with Nexus Dashboard APIs through contextual guidance,
+            Configure how Claude interacts with Cisco FMC APIs through contextual guidance,
             workflows, and enhanced tool descriptions.
           </p>
         </div>
@@ -128,7 +128,7 @@ export default function GuidanceDashboard() {
               <h3 className="text-sm font-medium text-blue-800">About API Guidance</h3>
               <div className="mt-2 text-sm text-blue-700">
                 <p>
-                  The API Guidance System helps Claude understand which Nexus Dashboard APIs to use and when.
+                  The API Guidance System helps Claude understand which Cisco FMC APIs to use and when.
                   It provides contextual information, multi-step workflows, and enhanced descriptions to
                   improve the quality of API interactions.
                 </p>
