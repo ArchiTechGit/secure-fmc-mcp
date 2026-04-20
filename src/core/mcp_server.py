@@ -255,10 +255,13 @@ class FMCMCPServer:
             if fmc_client.domain_uuid:
                 auto_path_params["domainUUID"] = fmc_client.domain_uuid
 
-            # Substitute path parameters
+            # Substitute path parameters; auto_path_params always wins for hidden params
+            _HIDDEN_PATH_PARAMS = {"domainUUID"}
             path_params = re.findall(r'\{([^}]+)\}', path)
             for param in path_params:
-                if param in arguments:
+                if param in auto_path_params and param in _HIDDEN_PATH_PARAMS:
+                    path = path.replace(f"{{{param}}}", auto_path_params[param])
+                elif param in arguments:
                     path = path.replace(f"{{{param}}}", str(arguments[param]))
                 elif param in auto_path_params:
                     path = path.replace(f"{{{param}}}", auto_path_params[param])
