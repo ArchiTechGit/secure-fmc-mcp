@@ -612,7 +612,7 @@ async def mcp_sse_post(
                     if auth_result.user and auth_result.user.clusters:
                         target_cluster = auth_result.user.clusters[0].name
                     # Call the tool handler with cluster context
-                    contents = await mcp.handle_call_tool(tool_name, tool_arguments, cluster_name=target_cluster)
+                    contents = await mcp.handle_call_tool(tool_name, tool_arguments, device_name=target_cluster)
 
                     # Extract text from TextContent responses
                     result = {
@@ -767,7 +767,7 @@ async def mcp_message(
                     if auth_result.user and auth_result.user.clusters:
                         target_cluster = auth_result.user.clusters[0].name
                     # Call the tool handler with cluster context
-                    contents = await mcp.handle_call_tool(tool_name, tool_arguments, cluster_name=target_cluster)
+                    contents = await mcp.handle_call_tool(tool_name, tool_arguments, device_name=target_cluster)
 
                     # Extract text from TextContent responses
                     result = {

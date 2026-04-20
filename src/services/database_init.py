@@ -201,6 +201,76 @@ async def sync_role_operations():
         logger.info("Role operations sync completed")
 
 
+async def sync_tool_profile_operations():
+    """Populate tool_profile_operations for named profiles from api_endpoints.
+
+    Migration 010 attempts this at schema-migration time, but api_endpoints is
+    empty then (it's loaded by sync_api_endpoints at runtime). This function runs
+    after sync_api_endpoints to perform the same population idempotently.
+    """
+    db = get_db()
+
+    async with db.session() as session:
+        # Skip if any profile already has operations assigned
+        result = await session.execute(
+            text("SELECT COUNT(*) FROM tool_profile_operations")
+        )
+        if (result.scalar() or 0) > 0:
+            logger.info("Tool profile operations already populated - skipping sync")
+            return
+
+        profile_queries = {
+            "Read-Only Analyst": """
+                INSERT INTO tool_profile_operations (profile_id, operation_name)
+                SELECT :profile_id, api_name || '_' || operation_id
+                FROM api_endpoints
+                WHERE api_name = 'fmc' AND http_method = 'GET'
+                ON CONFLICT (profile_id, operation_name) DO NOTHING
+            """,
+            "Device Operator": """
+                INSERT INTO tool_profile_operations (profile_id, operation_name)
+                SELECT :profile_id, api_name || '_' || operation_id
+                FROM api_endpoints
+                WHERE api_name = 'fmc'
+                  AND (path LIKE '%/devices/%' OR path LIKE '%/chassis/%')
+                ON CONFLICT (profile_id, operation_name) DO NOTHING
+            """,
+            "Policy Administrator": """
+                INSERT INTO tool_profile_operations (profile_id, operation_name)
+                SELECT :profile_id, api_name || '_' || operation_id
+                FROM api_endpoints
+                WHERE api_name = 'fmc'
+                  AND (path LIKE '%/policy/%' OR path LIKE '%/object/%')
+                ON CONFLICT (profile_id, operation_name) DO NOTHING
+            """,
+            "Troubleshooting Only": """
+                INSERT INTO tool_profile_operations (profile_id, operation_name)
+                SELECT :profile_id, api_name || '_' || operation_id
+                FROM api_endpoints
+                WHERE api_name = 'fmc' AND http_method = 'GET'
+                  AND (path LIKE '%/troubleshoot/%'
+                       OR path LIKE '%/health/%'
+                       OR path LIKE '%/deployment/%')
+                ON CONFLICT (profile_id, operation_name) DO NOTHING
+            """,
+        }
+
+        for profile_name, query in profile_queries.items():
+            profile_result = await session.execute(
+                text("SELECT id FROM tool_profiles WHERE name = :name"),
+                {"name": profile_name},
+            )
+            profile_id = profile_result.scalar_one_or_none()
+            if profile_id is None:
+                logger.warning(f"Tool profile '{profile_name}' not found - skipping")
+                continue
+            await session.execute(text(query), {"profile_id": profile_id})
+            logger.info(f"Populated operations for tool profile '{profile_name}'")
+
+        await session.commit()
+        logger.info("Tool profile operations sync completed")
+
+
 async def initialize_database_defaults():
     """Initialize all default database records.
 
@@ -214,6 +284,9 @@ async def initialize_database_defaults():
 
     # Sync API endpoints from OpenAPI specs
     await sync_api_endpoints()
+
+    # Populate tool profile operations (depends on api_endpoints being loaded)
+    await sync_tool_profile_operations()
 
     # Sync role operations for system roles
     await sync_role_operations()
