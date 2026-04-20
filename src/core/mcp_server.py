@@ -176,10 +176,15 @@ class FMCMCPServer:
 
         path_params = re.findall(r'\{([^}]+)\}', path)
 
+        # domainUUID is auto-filled from the auth token at call time; don't expose to AI
+        _HIDDEN_PATH_PARAMS = {"domainUUID"}
+
         properties: Dict[str, Any] = {}
         required: List[str] = []
 
         for param in path_params:
+            if param in _HIDDEN_PATH_PARAMS:
+                continue
             properties[param] = {"type": "string", "description": f"Path parameter: {param}"}
             required.append(param)
 
@@ -241,17 +246,28 @@ class FMCMCPServer:
             method = operation["method"]
             path = operation["path"]
 
+            # Authenticate early so we can auto-fill domainUUID from the token
+            api_name = operation.get("api_name", "fmc")
+            target_device = device_name or self.device_name or "default"
+            auth_mw = self.get_auth_middleware(target_device)
+            fmc_client = await auth_mw.get_api_client()
+            auto_path_params = {}
+            if fmc_client.domain_uuid:
+                auto_path_params["domainUUID"] = fmc_client.domain_uuid
+
             # Substitute path parameters
             path_params = re.findall(r'\{([^}]+)\}', path)
             for param in path_params:
                 if param in arguments:
                     path = path.replace(f"{{{param}}}", str(arguments[param]))
+                elif param in auto_path_params:
+                    path = path.replace(f"{{{param}}}", auto_path_params[param])
                 else:
                     return [TextContent(
                         type="text",
                         text=json.dumps({
                             "error": f"Missing required path parameter: {param}",
-                            "required_parameters": path_params,
+                            "required_parameters": [p for p in path_params if p not in auto_path_params],
                         }),
                     )]
 
@@ -282,10 +298,6 @@ class FMCMCPServer:
                         "edit_mode_required": True,
                     }),
                 )]
-
-            api_name = operation.get("api_name", "fmc")
-            target_device = device_name or self.device_name or "default"
-            auth_mw = self.get_auth_middleware(target_device)
 
             try:
                 response = await auth_mw.execute_request(
